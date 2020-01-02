@@ -13,8 +13,24 @@ main = do
 
   let finishedProgramState = runProgram 0 restoredProgram
   putStrLn "\nTHE RESULT IS...."
-  putStrLn $ show $ finishedProgramState
-  putStrLn "\nDONE"
+  putStrLn $ show $ finishedProgramState !! 0
+  putStrLn "\nPART 2..."
+
+  let allpossibilties =
+        [(noun,verb,runProgram 0 (setupProgram program noun verb)) |
+         noun <- [1..99] ,verb <- [1..99]]
+
+  let matches = filter (\(n,v,p) -> p !! 0 == 19690720) allpossibilties
+  putStrLn $ show matches
+
+  let match = head matches
+  let noun (n,_,_) = n
+  let verb (_,v,_) = v
+  let answer = (100*(noun match)) + (verb match)
+  putStrLn $ "\n THE ANSWER IS: " ++ (show answer)
+
+setupProgram program noun verb =
+   (head program):noun:verb:(drop 3 program)
 
 runProgram counter program =
   if (program !! counter) == 99
