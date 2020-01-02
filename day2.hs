@@ -8,23 +8,27 @@ main = do
   -- Restore the program state
   -- Replace position 1 with value 12, position 2 with value 2
 
-  let restoredProgram = 12:2:(drop 2 program)
-  mapM_ (\chunk -> putStrLn $ (show chunk) ++ "\n" ) $ chunksOf 4 restoredProgram
+  let restoredProgram = (head program):12:2:(drop 3 program)
+  putStrLn $ show restoredProgram
 
-  let finishedProgramState = runProgram restoredProgram
-  putStrLn "The program is>......"
-  putStrLn $ show finishedProgramState
-  putStrLn $ show $ head finishedProgramState
+  let finishedProgramState = runProgram 0 restoredProgram
+  putStrLn "\nTHE RESULT IS...."
+  putStrLn $ show $ finishedProgramState
+  putStrLn "\nDONE"
 
-runProgram program =
-  let instructions = chunksOf 4 program
-  in
-    foldl (\p i -> executeInstruction i p) program instructions
+runProgram counter program =
+  if (program !! counter) == 99
+  then
+    program
+  else
+    runProgram (counter+4) $ executeAtPosition counter program
+
 
   
 
-executeInstruction instruction program =
-  let intcode = head instruction
+executeAtPosition pos program =
+  let instruction = getIntcodeAt pos program
+      intcode = head instruction
   in case intcode of
     1 ->
       let newProgram = add (instruction !! 1) (instruction !! 2) (instruction !! 3) program
