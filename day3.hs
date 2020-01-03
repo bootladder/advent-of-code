@@ -56,8 +56,33 @@ main = do
   putStrLn $ ("The minimum is   ....   " ++ (show $ minimum distances1))
 
 
+  putStrLn $ "\n\nPART 2"
+  let allIntersections =
+        map (\x -> case x of
+                     Just (x,y) -> (x,y)
+                     Nothing -> (0,0)) (intersections1 ++ intersections2)
+
+  let path1Lengths = map (lengthToIntersection 0 segments1) allIntersections
+  let path2Lengths = map (lengthToIntersection 0 segments2) allIntersections
+  
+  putStrLn $ show path1Lengths
   putStrLn $ "DONE"
 
+
+lengthToIntersection :: Int -> [Segment] -> (Int,Int) -> Int
+lengthToIntersection acc segments intersection =
+  if (fst $ head segments) == intersection
+  then acc
+  else acc +
+       (lengthToIntersection
+         (segmentLength $ head segments)
+         (tail segments)
+         intersection)
+  
+segmentLength :: Segment -> Int
+segmentLength segment = abs $ ((fst $ fst segment) - (fst $ snd segment))
+                        + ((snd $ fst segment) - (snd $ snd segment))
+  
 printSegments :: [Segment] -> IO ()
 printSegments segments =
   mapM_ (\seg -> putStrLn (
