@@ -65,19 +65,58 @@ main = do
   let path1Lengths = map (lengthToIntersection 0 segments1) allIntersections
   let path2Lengths = map (lengthToIntersection 0 segments2) allIntersections
   
+  putStrLn $ "Path Lengths"
   putStrLn $ show path1Lengths
+  putStrLn $ show path2Lengths
+  putStrLn $ "Sum of Path Lengths"
+  putStrLn $ show $ map (\(a,b) -> a+b) $ zip path1Lengths path2Lengths
+  putStrLn $ "Minimum is"
+  putStrLn $ show $ minimum $ map (\(a,b) -> a+b) $ zip path1Lengths path2Lengths
   putStrLn $ "DONE"
 
 
 lengthToIntersection :: Int -> [Segment] -> (Int,Int) -> Int
 lengthToIntersection acc segments intersection =
-  if (fst $ head segments) == intersection
-  then acc
+  if intersection `isInBetween` (head segments)
+  then acc + (segmentLength ((fst $ head segments), intersection))
   else acc +
        (lengthToIntersection
          (segmentLength $ head segments)
          (tail segments)
          intersection)
+
+isInBetween :: (Int,Int) -> Segment -> Bool
+isInBetween p seg = 
+  if (p `hasSameY` seg) && (p `hasXBetween` seg) ||
+     (p `hasSameX` seg) && (p `hasYBetween` seg)
+  then True
+  else False
+
+hasSameY :: (Int,Int) -> Segment -> Bool
+hasSameY p seg = (snd p) == (snd $ fst seg) && (snd p) == (snd $ snd seg)
+
+hasSameX :: (Int,Int) -> Segment -> Bool
+hasSameX p seg = (fst p) == (fst $ fst seg) && (fst p) == (fst $ snd seg)
+
+hasXBetween :: (Int,Int) -> Segment -> Bool
+hasXBetween p seg = 
+      let horizontalLeft  = min (fst $ fst seg) (fst $ snd seg)
+          horizontalRight = max (fst $ fst seg) (fst $ snd seg)
+          x = fst p
+      in
+        if x >= horizontalLeft && x <= horizontalRight
+        then True
+        else False
+  
+hasYBetween :: (Int,Int) -> Segment -> Bool
+hasYBetween p seg = 
+      let verticalTop = max (snd $ fst seg) (snd $ snd seg)
+          verticalBot = min (snd $ fst seg) (snd $ snd seg)
+          y = snd p
+      in
+        if y >= verticalBot && y <= verticalTop
+        then True
+        else False
   
 segmentLength :: Segment -> Int
 segmentLength segment = abs $ ((fst $ fst segment) - (fst $ snd segment))
