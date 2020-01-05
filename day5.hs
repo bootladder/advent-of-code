@@ -9,7 +9,7 @@ data ComputerState =
                 , status :: Status 
                 }deriving Show
 
-data Opcode = ADD|MULT|INPUT|OUTPUT|HALT|INVALID deriving Show
+data Opcode = ADD|MULT|INPUT|OUTPUT|JUMPIFTRUE|JUMPIFFALSE|LESSTHAN|EQUALS|HALT|INVALID deriving Show
 
 data ParamType = Positional|Immediate deriving Show
 data Param = Param Int ParamType deriving Show
@@ -25,15 +25,22 @@ testProgram1 = [2,4,5,5,99,3]  :: [Int]
 testProgram2 = [1002,4,3,4,33] :: [Int]
 testProgram3 = [1101,100,-1,4,0] :: [Int]
 testProgram4 = [3,0,4,0,99] :: [Int]
+testProgram5 = [3,9,8,9,10,9,4,9,99,-1,8] :: [Int]
+testProgram6 = [3,9,7,9,10,9,4,9,99,-1,8] :: [Int]
+testProgram7 = [3,3,1108,-1,8,3,4,3,99] :: [Int]
+testProgram8 = [3,3,1107,-1,8,3,4,3,99] :: [Int]
+testProgram9 = [3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9] :: [Int]
+  --                                    9       1213   15
+testProgram10 = [3,3,1105,-1,9,1101,0,0,12,4,12,99,1] :: [Int]
 
 main = do
   s <- readFile "day5-input.txt"
   putStrLn "Running Short Test Programs"
   let program = map read $ splitOn "," s :: [Int]
-  
-  putStrLn $ show program
-  testOut1 <- runProgram program
-  --putStrLn $ show testOut1
+  --putStrLn $ show program
+
+  testOut1 <- runProgram testProgram5
+  putStrLn $ show testOut1
   putStrLn "hello"
 
 
@@ -47,6 +54,7 @@ runProgram' :: IO ComputerState -> IO ComputerState
 runProgram' iocs =
   do
   cs <- iocs
+  putStrLn $ "Derp : " ++ (show $ getNextInstruction cs)
   case (status cs) of
     WAITFORINPUT loc ->
       do
@@ -88,6 +96,10 @@ updateCounter cs =
         MULT -> 4
         INPUT -> 2
         OUTPUT -> 2
+        JUMPIFTRUE -> 0
+        JUMPIFFALSE -> 0
+        LESSTHAN -> 4
+        EQUALS -> 4
   in
     cs {counter = (counter cs) + length}
 
@@ -122,9 +134,54 @@ executeAtPosition cs =
       in
         ComputerState (program cs) (counter cs) (OUTPUTTING value)
       
+    JUMPIFTRUE -> 
+      let p1val = param2value (param1 instruction) (program cs) 
+          p2val = param2value (param2 instruction) (program cs)
+      in
+        if p1val /= 0
+        then
+          cs {counter = p2val}
+        else
+          cs {counter = (counter cs) + 3}
+      
+    JUMPIFFALSE -> 
+      let p1val = param2value (param1 instruction) (program cs) 
+          p2val = param2value (param2 instruction) (program cs)
+      in
+        if p1val == 0
+        then
+          cs {counter = p2val}
+        else
+          cs {counter = (counter cs) + 3}
+      
+    LESSTHAN -> 
+      let p1val = param2value (param1 instruction) (program cs)
+          p2val = param2value (param2 instruction) (program cs)
+          p3pos = getParamValue (param3 instruction)
+      in
+        if p1val < p2val
+        then
+          cs{program = writeValueToProgram (program cs) 1 p3pos}
+        else
+          cs{program = writeValueToProgram  (program cs) 0 p3pos}
+      
+    EQUALS -> 
+      let p1val = param2value (param1 instruction) (program cs)
+          p2val = param2value (param2 instruction) (program cs)
+          p3pos = getParamValue (param3 instruction)
+      in
+        if p1val == p2val
+        then
+          cs{program = writeValueToProgram (program cs) 1 p3pos}
+        else
+          cs{program = writeValueToProgram  (program cs) 0 p3pos}
 
     _ -> ComputerState (program cs) (counter cs) BADINSTRUCTION
         
+
+writeValueToProgram :: Program -> Int -> Int -> Program
+writeValueToProgram program val loc =
+  (take loc program) ++ [val] ++ (drop (loc + 1) program)
     
 getNextInstruction :: ComputerState -> Instruction
 getNextInstruction cs = 
@@ -134,15 +191,24 @@ getNextInstruction cs =
       param1type = case (firstValue `mod` 1000) `div` 100 of
         1 -> Immediate
         0 -> Positional
+      param1Value = if length rawInstruction > 1
+                    then rawInstruction !! 1
+                    else -1
       param2type = case (firstValue `mod` 10000) `div` 1000 of
         1 -> Immediate
         0 -> Positional
+      param2Value = if length rawInstruction > 2
+                    then rawInstruction !! 2
+                    else -1
+      param3Value = if length rawInstruction > 3
+                    then rawInstruction !! 3
+                    else -1
   in
       
   Instruction { opcode = parseOpcode rawOpcode
-              , param1 = Param (rawInstruction !! 1) param1type
-              , param2 = Param (rawInstruction !! 2) param2type
-              , param3 = Param (rawInstruction !! 3) Positional
+              , param1 = Param param1Value param1type
+              , param2 = Param param2Value param2type
+              , param3 = Param param3Value Positional
               }
 
 parseOpcode :: Int -> Opcode
@@ -151,6 +217,10 @@ parseOpcode i = case i of
   2 -> MULT
   3 -> INPUT
   4 -> OUTPUT
+  5 -> JUMPIFTRUE
+  6 -> JUMPIFFALSE
+  7 -> LESSTHAN
+  8 -> EQUALS
   99 -> HALT
   _ -> INVALID
 
