@@ -32,6 +32,7 @@ testProgram8 = [3,3,1107,-1,8,3,4,3,99] :: [Int]
 testProgram9 = [3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9] :: [Int]
   --                                    9       1213   15
 testProgram10 = [3,3,1105,-1,9,1101,0,0,12,4,12,99,1] :: [Int]
+testProgram11 = [3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99] :: [Int]
 
 main = do
   s <- readFile "day5-input.txt"
@@ -39,7 +40,7 @@ main = do
   let program = map read $ splitOn "," s :: [Int]
   --putStrLn $ show program
 
-  testOut1 <- runProgram testProgram5
+  testOut1 <- runProgram program
   putStrLn $ show testOut1
   putStrLn "hello"
 
@@ -82,26 +83,24 @@ runProgram' iocs =
         return $ cs {status = HALTED}
       else
         let afterExecute = executeAtPosition cs
-            afterUpdate = updateCounter afterExecute
+            inc = getCounterIncrement $ getNextInstruction cs
+            newState = afterExecute {counter = (counter afterExecute) + inc}
         in
-            runProgram' $ return afterUpdate
+            runProgram' $ return newState
 
     _ -> return cs
   
-updateCounter :: ComputerState -> ComputerState
-updateCounter cs =
-  let instruction = getNextInstruction cs
-      length = case opcode instruction of
-        ADD -> 4
-        MULT -> 4
-        INPUT -> 2
-        OUTPUT -> 2
-        JUMPIFTRUE -> 0
-        JUMPIFFALSE -> 0
-        LESSTHAN -> 4
-        EQUALS -> 4
-  in
-    cs {counter = (counter cs) + length}
+getCounterIncrement :: Instruction -> Int
+getCounterIncrement instruction =
+  case opcode instruction of
+    ADD -> 4
+    MULT -> 4
+    INPUT -> 2
+    OUTPUT -> 2
+    JUMPIFTRUE -> 0
+    JUMPIFFALSE -> 0
+    LESSTHAN -> 4
+    EQUALS -> 4
 
 executeAtPosition :: ComputerState -> ComputerState
 executeAtPosition cs =
