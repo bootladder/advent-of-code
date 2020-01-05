@@ -1,6 +1,6 @@
 type Program = [Int]
 type Counter = Int 
-data Status  = OK|WAITFORINPUT Int|HALTED|BADINSTRUCTION deriving Show
+data Status  = OK|WAITFORINPUT Int|OUTPUTTING Int|HALTED|BADINSTRUCTION deriving Show
 data ComputerState =
   ComputerState { program :: Program 
                 , counter :: Counter 
@@ -44,18 +44,26 @@ runProgram' iocs =
   do
   cs <- iocs
   case (status cs) of
-    WAITFORINPUT loc -> do
-      putStrLn "YESSSSSSS WAITING FOR INPUT..."
-      input <- getLine
-      let inputValue = read input :: Int
-      putStrLn $ "Storing value : " ++ (show inputValue) ++ " to "
-        ++ "location : " ++ (show loc)
-
-      let newProgram =
-            (take loc (program cs)) ++ [inputValue]
-            ++ (drop (loc+1) (program cs))
-
-      return cs {program=newProgram, status=OK}
+    WAITFORINPUT loc ->
+      do
+        putStrLn "YESSSSSSS WAITING FOR INPUT..."
+        input <- getLine
+        let inputValue = read input :: Int
+        putStrLn $ "Storing value : " ++ (show inputValue) ++ " to "
+          ++ "location : " ++ (show loc)
+  
+        let newProgram =
+              (take loc (program cs)) ++ [inputValue]
+              ++ (drop (loc+1) (program cs))
+        
+        runProgram' $ return cs {program=newProgram, status=OK}
+  
+    OUTPUTTING loc ->
+      let output = show $ (program cs) !! loc
+      in
+        do
+          putStrLn $ "YESSSSSSS THE OUTPUT IS  :   " ++ (show output)
+          runProgram' $ return cs {status=OK}
 
     OK ->
                        
@@ -71,7 +79,15 @@ runProgram' iocs =
     _ -> return cs
   
 updateCounter :: ComputerState -> ComputerState
-updateCounter cs = cs {counter = (counter cs) + 4}
+updateCounter cs =
+  let instruction = getNextInstruction cs
+      length = case opcode instruction of
+        ADD -> 4
+        MULT -> 4
+        INPUT -> 2
+        OUTPUT -> 2
+  in
+    cs {counter = (counter cs) + length}
 
 executeAtPosition :: ComputerState -> ComputerState
 executeAtPosition cs =
@@ -98,6 +114,12 @@ executeAtPosition cs =
       let loc = getParamValue (param1 instruction)
       in
         ComputerState (program cs) (counter cs) (WAITFORINPUT loc)
+
+    OUTPUT ->
+      let loc = getParamValue (param1 instruction)
+      in
+        ComputerState (program cs) (counter cs) (OUTPUTTING loc)
+      
 
     _ -> ComputerState (program cs) (counter cs) BADINSTRUCTION
         
