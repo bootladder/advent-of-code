@@ -1,3 +1,5 @@
+import Data.List.Split
+
 type Program = [Int]
 type Counter = Int 
 data Status  = OK|WAITFORINPUT Int|OUTPUTTING Int|HALTED|BADINSTRUCTION deriving Show
@@ -27,9 +29,11 @@ testProgram4 = [3,0,4,0,99] :: [Int]
 main = do
   s <- readFile "day5-input.txt"
   putStrLn "Running Short Test Programs"
+  let program = map read $ splitOn "," s :: [Int]
   
-  testOut1 <- runProgram testProgram4
-  putStrLn $ show testOut1
+  putStrLn $ show program
+  testOut1 <- runProgram program
+  --putStrLn $ show testOut1
   putStrLn "hello"
 
 
@@ -58,12 +62,10 @@ runProgram' iocs =
         
         runProgram' $ return cs {program=newProgram, status=OK}
   
-    OUTPUTTING loc ->
-      let output = show $ (program cs) !! loc
-      in
-        do
-          putStrLn $ "YESSSSSSS THE OUTPUT IS  :   " ++ (show output)
-          runProgram' $ return cs {status=OK}
+    OUTPUTTING value ->
+      do
+        putStrLn $ "YESSSSSSS THE OUTPUT IS : " ++ (show value)
+        runProgram' $ return cs {status=OK}
 
     OK ->
                        
@@ -116,9 +118,9 @@ executeAtPosition cs =
         ComputerState (program cs) (counter cs) (WAITFORINPUT loc)
 
     OUTPUT ->
-      let loc = getParamValue (param1 instruction)
+      let value = param2value (param1 instruction) (program cs)
       in
-        ComputerState (program cs) (counter cs) (OUTPUTTING loc)
+        ComputerState (program cs) (counter cs) (OUTPUTTING value)
       
 
     _ -> ComputerState (program cs) (counter cs) BADINSTRUCTION
@@ -161,9 +163,6 @@ param2value param program =
 
 getParamValue (Param i _) = i
   
-  
-getIntcodeAt pos program =
-  take 4 $ drop pos program
 
 add x_val y_val result_pos program =
   let 
