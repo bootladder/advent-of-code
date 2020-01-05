@@ -1,6 +1,6 @@
 type Program = [Int]
 type Counter = Int 
-data Status  = OK|HALTED|BADINSTRUCTION deriving Show
+data Status  = OK|WAITFORINPUT Int|HALTED|BADINSTRUCTION deriving Show
 data ComputerState =
   ComputerState { program :: Program 
                 , counter :: Counter 
@@ -22,37 +22,53 @@ data Instruction =
 testProgram1 = [2,4,5,5,99,3]  :: [Int]
 testProgram2 = [1002,4,3,4,33] :: [Int]
 testProgram3 = [1101,100,-1,4,0] :: [Int]
+testProgram4 = [3,0,4,0,99] :: [Int]
 
 main = do
   s <- readFile "day5-input.txt"
   putStrLn "Running Short Test Programs"
   
-  let testOut1 = runProgram testProgram3
+  testOut1 <- runProgram testProgram4
   putStrLn $ show testOut1
   putStrLn "hello"
 
 
-runProgram :: Program -> ComputerState
+runProgram :: Program -> IO ComputerState
 runProgram p =
   let cs = ComputerState p 0 OK
   in
-    runProgram' cs
+    runProgram' $ return cs
 
-runProgram' :: ComputerState -> ComputerState
-runProgram' cs =
+runProgram' :: IO ComputerState -> IO ComputerState
+runProgram' iocs =
+  do
+  cs <- iocs
   case (status cs) of
+    WAITFORINPUT loc -> do
+      putStrLn "YESSSSSSS WAITING FOR INPUT..."
+      input <- getLine
+      let inputValue = read input :: Int
+      putStrLn $ "Storing value : " ++ (show inputValue) ++ " to "
+        ++ "location : " ++ (show loc)
+
+      let newProgram =
+            (take loc (program cs)) ++ [inputValue]
+            ++ (drop (loc+1) (program cs))
+
+      return cs {program=newProgram, status=OK}
+
     OK ->
                        
       if (program cs !! counter cs) == 99 --halt
       then
-        cs {status = HALTED}
+        return $ cs {status = HALTED}
       else
         let afterExecute = executeAtPosition cs
             afterUpdate = updateCounter afterExecute
         in
-            runProgram' afterUpdate
+            runProgram' $ return afterUpdate
 
-    _ -> cs
+    _ -> return cs
   
 updateCounter :: ComputerState -> ComputerState
 updateCounter cs = cs {counter = (counter cs) + 4}
@@ -78,6 +94,11 @@ executeAtPosition cs =
       in
         ComputerState newProgram (counter cs) OK
 
+    INPUT ->
+      let loc = getParamValue (param1 instruction)
+      in
+        ComputerState (program cs) (counter cs) (WAITFORINPUT loc)
+
     _ -> ComputerState (program cs) (counter cs) BADINSTRUCTION
         
     
@@ -95,8 +116,8 @@ getNextInstruction cs =
   in
       
   Instruction { opcode = parseOpcode rawOpcode
-              , param1 = Param (rawInstruction !! 1) Immediate
-              , param2 = Param (rawInstruction !! 2) Immediate
+              , param1 = Param (rawInstruction !! 1) param1type
+              , param2 = Param (rawInstruction !! 2) param2type
               , param3 = Param (rawInstruction !! 3) Positional
               }
 
