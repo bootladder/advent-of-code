@@ -7,6 +7,7 @@ testProgram3 = [3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,
 
 testProgram4 = [3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5] :: [Int]
 
+main :: IO ()
 main = do
   putStrLn "Hello"
 
@@ -37,6 +38,7 @@ main = do
 
   putStrLn "\n\nPART 2\n\n"
   runProgramWithPhaseSequenceInFeedbackMode testProgram4 [9,8,7,6,5] 0
+  putStrLn "Done"
 
 runProgramWithPhaseSequenceInFeedbackMode :: Program -> [Int] -> Int -> IO ComputerState
 runProgramWithPhaseSequenceInFeedbackMode program seq initialInput  =
@@ -100,21 +102,20 @@ data Instruction =
               } deriving Show
 
 
-executeComputerUntilHaltOrInput :: ComputerState -> IO ComputerState
+executeComputerUntilHaltOrInput :: ComputerState -> ComputerState
 executeComputerUntilHaltOrInput cs =
   do
   case (status cs) of
     WAITFORINPUT _ ->
-        return cs
+        cs
 
     OUTPUTTING value ->
-      do
-        runProgram' $ return cs {status=OK, outputBuffer = (outputBuffer cs) ++ [value]}
+        runProgram' cs {status=OK, outputBuffer = (outputBuffer cs) ++ [value]}
 
     OK ->
       if (program cs !! counter cs) == 99 --halt
       then
-        return $ cs {status = HALTED}
+        cs {status = HALTED}
       else
         let afterExecute = executeAtPosition cs
             inc = getCounterIncrement $ getNextInstruction cs
@@ -122,19 +123,18 @@ executeComputerUntilHaltOrInput cs =
         in
             executeComputerUntilHaltOrInput $ newState
 
-    _ -> return cs
+    _ -> cs
 
 
 runProgramWithInputBuffer :: Program -> [Int] -> IO ComputerState
 runProgramWithInputBuffer prog inputBuf =
   let cs = ComputerState prog 0 OK inputBuf []
   in
-    runProgram' $ return cs
+    pure $ runProgram' cs
 
-runProgram' :: IO ComputerState -> IO ComputerState
-runProgram' iocs =
+runProgram' :: ComputerState -> ComputerState
+runProgram' cs =
   do
-  cs <- iocs
   case (status cs) of
     WAITFORINPUT loc ->
       do
@@ -143,24 +143,24 @@ runProgram' iocs =
               (take loc (program cs)) ++ [inputValue]
               ++ (drop (loc+1) (program cs))
 
-        runProgram' $ return cs {program=newProgram, status=OK, inputBuffer = tail $ inputBuffer cs}
+        runProgram' $ cs {program=newProgram, status=OK, inputBuffer = tail $ inputBuffer cs}
 
     OUTPUTTING value ->
       do
-        runProgram' $ return cs {status=OK, outputBuffer = (outputBuffer cs) ++ [value]}
+        runProgram' $ cs {status=OK, outputBuffer = (outputBuffer cs) ++ [value]}
 
     OK ->
       if (program cs !! counter cs) == 99 --halt
       then
-        return $ cs {status = HALTED}
+        cs {status = HALTED}
       else
         let afterExecute = executeAtPosition cs
             inc = getCounterIncrement $ getNextInstruction cs
             newState = afterExecute {counter = (counter afterExecute) + inc}
         in
-            runProgram' $ return newState
+            runProgram' newState
 
-    _ -> return cs
+    _ -> cs
 
 getCounterIncrement :: Instruction -> Int
 getCounterIncrement instruction =
