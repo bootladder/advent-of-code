@@ -6,38 +6,37 @@ data Image = Image { width :: Int
                    , contents :: [Int]
                    }deriving Show
 
-testImageRaw :: String
-testImageRaw = "123456789012"
-
-testImageWidth  = 3
-testImageHeight = 2
+testImage :: Image
+testImage = Image 3 2 $ parseImage "123456789012"
 
 parseImage :: String -> [Int]
 parseImage s = map (\c -> read [c]) s :: [Int]
 
 image2Layers :: Image -> [[Int]]
 image2Layers image = chunksOf ((width image) * (height image)) (contents image)
-  
+
+part1 :: Image -> Int
+part1 image =
+  let layers = image2Layers image
+
+      numZerosOfLayers = map (length . filter (== 0))  layers
+      numOnesOfLayers = map (length . filter (== 1))  layers
+      numTwosOfLayers = map (length . filter (== 2))  layers
+      zipped = zip3 numZerosOfLayers numOnesOfLayers numTwosOfLayers
+
+      fewestZeros = minimumBy (\(zero,_,_) (a,_,_) -> zero `compare` a) zipped
+      ones (_,b,_) = b
+      twos (_,_,c) = c
+      answer = (ones fewestZeros) * (twos fewestZeros)
+  in
+    answer
 
 main :: IO ()
 main = do
   s <- (readFile "day8-input.txt") >>= (pure . reverse . dropWhile (=='\n') . reverse)
 
-  let testImage = Image testImageWidth testImageHeight $ parseImage testImageRaw
-
   let inputImage = Image 25 6 $ parseImage s
 
-  let layers = image2Layers inputImage
+  putStrLn $ "The answer is " ++ (show $ part1 inputImage)
 
-  let numZerosOfLayers = map (length . filter (== 0))  layers
-  let numOnesOfLayers = map (length . filter (== 1))  layers
-  let numTwosOfLayers = map (length . filter (== 2))  layers
-  let zipped = zip3 numZerosOfLayers numOnesOfLayers numTwosOfLayers
-
-  let fewestZeros = minimumBy (\(zero,one,two) (a,b,c) -> zero `compare` a) zipped
-  let ones (a,b,c) = b
-  let twos (a,b,c) = c
-  let answer = (ones fewestZeros) * (twos fewestZeros)
-
-  putStrLn $ show $ fewestZeros
-  putStrLn $ "The answer is " ++ (show $ answer)
+  putStrLn $ "\n\npart 2"
