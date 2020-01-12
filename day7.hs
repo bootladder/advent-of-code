@@ -62,23 +62,20 @@ runProgramWithPhaseSequenceInFeedbackMode prog phaseSeq =
       in 7
 
 runProgramWithPhaseSequence :: Program -> [Int] -> ComputerState
-runProgramWithPhaseSequence prog seq =
-  let
-    cs1 = runProgramWithInputBuffer prog [seq !! 0,0]
+runProgramWithPhaseSequence prog phaseSeq =
+  let states = foldl
+        (\l phase ->
+           let
+             previousOutput = head $ outputBuffer $ last l
+             cs = runProgramWithInputBuffer prog [phase, previousOutput]
+           in
+             l ++ [cs]
+        )
 
-    output1 = head $ outputBuffer cs1
-    cs2 = runProgramWithInputBuffer prog [seq !! 1,output1]
+        [defaultComputerState {outputBuffer = [0]}]
+        phaseSeq
 
-    output2 = head $ outputBuffer cs2
-    cs3 = runProgramWithInputBuffer prog [seq !! 2,output2]
-
-    output3 = head $ outputBuffer cs3
-    cs4 = runProgramWithInputBuffer prog [seq !! 3,output3]
-
-    output4 = head $ outputBuffer cs4
-    cs5 = runProgramWithInputBuffer prog [seq !! 4,output4]
-
-    in cs5
+  in last states
 
 
 type Program = [Int]
@@ -91,6 +88,15 @@ data ComputerState =
                 , inputBuffer :: [Int]
                 , outputBuffer :: [Int]
                 }deriving Show
+
+defaultComputerState :: ComputerState
+defaultComputerState =
+  ComputerState { program=[]
+  , counter = 0
+  , status = OK
+  , inputBuffer = []
+  , outputBuffer = []
+  }
 
 data Opcode = ADD|MULT|INPUT|OUTPUT|JUMPIFTRUE|JUMPIFFALSE|LESSTHAN|EQUALS|HALT|INVALID deriving Show
 
