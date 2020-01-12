@@ -1,25 +1,46 @@
 import Data.List.Split
 import Data.List
+import Data.Array
 
 import Debug.Trace
 
 myTrace :: (Show a) => String -> a -> a
 myTrace comment t = trace (comment ++ show t) t
 
-testProgram1 = [109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99] :: [Int]
+testProgram1 :: Array Int Int
+testProgram1 = listArray (0,10000) $
+               [109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99]
+               ++ (repeat 0)
+
+testProgram2 :: Array Int Int
+testProgram2 = listArray (0,10000) $
+               [1102,34915192,34915192,7,4,7,99,0]
+               ++ (repeat 0)
+
+testProgram3 :: Array Int Int
+testProgram3 = listArray (0,10000) $
+               [104,1125899906842624,99]
+               ++ (repeat 0)
+
+myTestProgram :: Array Int Int
+myTestProgram = listArray (0,10000) $ [1101, 1, 1, 3, 99] ++ (repeat 0)
 
 main :: IO ()
 main = do
   s <- readFile "day9-input.txt"
-  let inputProgram = map read $ splitOn "," s :: [Int]
+  let inputProgram = listArray (0,4000) $ (map read $ splitOn "," s) ++ (repeat 0)
+  putStrLn $ show $ inputProgram
 
   let cs = runProgramWithInputBuffer testProgram1 []
+    in putStrLn $ show $ cs
+  putStrLn "\n"
 
-  putStrLn $ show $ cs
+  let cs = runProgramWithInputBuffer inputProgram [1]
+    in putStrLn $ show $ cs
   putStrLn "Done"
 
 
-type Program = [Int]
+type Program = Array Int Int
 type Counter = Int
 data Status  = OK|WAITFORINPUT Int|OUTPUTTING Int|HALTED|BADINSTRUCTION deriving (Show, Eq)
 data ComputerState =
@@ -34,14 +55,14 @@ data ComputerState =
 
 
 showComputerState :: ComputerState -> String
-showComputerState cs = "ComputerState: ID : " ++ (computerId cs) ++ " Counter = " ++ (show $ counter cs) ++ " Status = " ++ (show $ status cs) ++ " inputbuffer = " ++ (show $ inputBuffer cs) ++ " outputBuffer = " ++ (show $ outputBuffer cs)
+showComputerState cs = "ComputerState: ID : " ++ (computerId cs) ++ " Counter = " ++ (show $ counter cs) ++ " Status = " ++ (show $ status cs) ++ " relativeBase = " ++ (show $ relativeBase cs) ++ " inputbuffer = " ++ (show $ inputBuffer cs) ++ " outputBuffer = " ++ (show $ outputBuffer cs)
 
 instance Show ComputerState where show = showComputerState
 
 defaultComputerState :: ComputerState
 defaultComputerState =
   ComputerState { computerId = "default"
-                , program=[]
+                , program=listArray (0,10000) [1..]
                 , counter = 0
                 , relativeBase = 0
                 , status = OK
@@ -71,15 +92,15 @@ runProgramWithInputBuffer prog inputBuf =
 
 runProgram :: ComputerState -> ComputerState
 runProgram cs =
-  case (status cs) of
+  case trace ("Running Computer : " ++ (show cs)) (status cs) of
     WAITFORINPUT loc ->
       if null $ inputBuffer cs
       then cs
       else
         let inputValue = head $ inputBuffer cs
-            newProgram =
-              (take loc (program cs)) ++ [inputValue]
-              ++ (drop (loc+1) (program cs))
+            newProgram = (program cs) // [(loc, inputValue)]
+             -- (take loc (program cs)) ++ [inputValue]
+             -- ++ (drop (loc+1) (program cs))
 
         in runProgram $ cs {program=newProgram
                             , status=OK
@@ -92,7 +113,7 @@ runProgram cs =
                        }
 
     OK ->
-      if (program cs !! counter cs) == 99 --halt
+      if (program cs ! counter cs) == 99 --halt
       then
         cs {status = HALTED}
       else
@@ -140,7 +161,11 @@ executeAtPosition cs =
         cs {program=newProgram}
 
     INPUT ->
-      let loc = getParamValue (param1 instruction)
+      let loc = case (param1 instruction) of
+                  Param i Immediate -> i
+                  Param i Positional -> (program cs) ! i
+                  Param i Relative -> ((relativeBase cs) + i)
+                  _ -> -1
       in
         cs {status=WAITFORINPUT loc}
 
@@ -201,12 +226,14 @@ executeAtPosition cs =
 
 writeValueToProgram :: Program -> Int -> Int -> Program
 writeValueToProgram prog val loc =
-  (take loc prog) ++ [val] ++ (drop (loc + 1) prog)
+  prog // [(loc, val)]
+  --(take loc prog) ++ [val] ++ (drop (loc + 1) prog)
 
 getNextInstruction :: ComputerState -> Instruction
 getNextInstruction cs =
-  let rawInstruction = drop (counter cs) (program cs)
-      firstValue = rawInstruction !! 0
+  let --rawInstruction = drop (counter cs) (program cs)
+      --firstValue = rawInstruction !! 0
+      firstValue = (program cs) ! (counter cs)
       rawOpcode  = firstValue `mod` 100
       param1type = case (firstValue `mod` 1000) `div` 100 of
                      2 -> Relative
@@ -214,9 +241,8 @@ getNextInstruction cs =
                      0 -> Positional
                      _ -> Invalid
 
-      param1Value = if length rawInstruction > 1
-                    then rawInstruction !! 1
-                    else -1
+      param1Value =
+                    (program cs) ! ((counter cs) + 1)
 
       param2type = case (firstValue `mod` 10000) `div` 1000 of
                      2 -> Relative
@@ -224,14 +250,12 @@ getNextInstruction cs =
                      0 -> Positional
                      _ -> Invalid
 
-      param2Value = if length rawInstruction > 2
-                    then rawInstruction !! 2
-                    else -1
+      param2Value =
+                    (program cs) ! ((counter cs) + 2)
 
       -- check relative param here
-      param3Value = if length rawInstruction > 3
-                    then rawInstruction !! 3
-                    else -1
+      param3Value = 
+                    (program cs) ! ((counter cs) + 3)
   in
 
   Instruction { opcode = parseOpcode rawOpcode
@@ -259,8 +283,8 @@ param2value :: Param -> ComputerState -> Int
 param2value param cs =
   case param of
     Param i Immediate -> i
-    Param i Positional -> (program cs) !! i
-    Param i Relative -> (program cs) !! ((relativeBase cs) + i)
+    Param i Positional -> (program cs) ! i
+    Param i Relative -> (program cs) ! ((relativeBase cs) + i)
     Param _ Invalid -> 0
 
 getParamValue :: Param -> Int
@@ -272,11 +296,11 @@ add x_val y_val result_pos prog =
   let
       sum_ = x_val + y_val
   in
-    (take result_pos prog) ++ [sum_] ++ (drop (result_pos + 1) prog)
+    prog // [(result_pos, sum_)]
 
 multiply :: Int -> Int -> Int -> Program -> Program
 multiply x_val y_val result_pos prog =
   let
       product_ = x_val * y_val
   in
-    (take result_pos prog) ++ [product_] ++ (drop (result_pos + 1) prog)
+    prog // [(result_pos, product_)]
