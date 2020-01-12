@@ -11,44 +11,47 @@ main :: IO ()
 main = do
   putStrLn "Hello"
 
-  cs <- runProgramWithPhaseSequence testProgram1 [4,3,2,1,0]
-  putStrLn $ "\n\nFirst Output : " ++ (show $ outputBuffer cs)
+  let cs = runProgramWithPhaseSequence testProgram1 [4,3,2,1,0]
+    in putStrLn $ "\n\nFirst Output : " ++ (show $ outputBuffer cs)
 
-  cs <- runProgramWithPhaseSequence testProgram2 [0,1,2,3,4]
-  putStrLn $ "\n\nFirst Output : " ++ (show $ outputBuffer cs)
+  let cs = runProgramWithPhaseSequence testProgram2 [0,1,2,3,4]
+    in putStrLn $ "\n\nFirst Output : " ++ (show $ outputBuffer cs)
 
-  cs <- runProgramWithPhaseSequence testProgram3 [1,0,4,3,2]
-  putStrLn $ "\n\nFirst Output : " ++ (show $ outputBuffer cs)
+  let cs = runProgramWithPhaseSequence testProgram3 [1,0,4,3,2]
+    in putStrLn $ "\n\nFirst Output : " ++ (show $ outputBuffer cs)
 
   s <- readFile "day7-input.txt"
-  let program = map read $ splitOn "," s :: [Int]
 
+  let inputProgram = map read $ splitOn "," s :: [Int]
 
-  let allPossibleOutputs = [runProgramWithPhaseSequence program phaseSequence | phaseSequence <- permutations [0,1,2,3,4] ]
+      allPossibleOutputs = map
+                           (runProgramWithPhaseSequence inputProgram)
+                           (permutations [0,1,2,3,4])
 
-  evaluated <- sequence allPossibleOutputs
+      outputBuffers = map outputBuffer allPossibleOutputs
 
-  let outputBuffers = map (outputBuffer) evaluated
+      lengthCheck = filter (\b -> length b > 1) outputBuffers
 
-  let lengthCheck = filter (\b -> length b > 1) outputBuffers
-  putStrLn $ "Length check: there should be nothing with more than 1 result : " ++ (show lengthCheck)
+  putStrLn $ "Length check: there should be nothing with more than 1 result : "
+    ++ (show lengthCheck)
 
-  putStrLn $ "Length of result : " ++ (show $ length outputBuffers)
-  putStrLn $ show $ maximum outputBuffers
+  putStrLn $ (++) "Length of result : " $ show $ length outputBuffers
+  putStrLn $ (++) "The answer is: " $ show $ maximum outputBuffers
 
   putStrLn "\n\nPART 2\n\n"
-  runProgramWithPhaseSequenceInFeedbackMode testProgram4 [9,8,7,6,5] 0
+  let out = runProgramWithPhaseSequenceInFeedbackMode testProgram4 [9,8,7,6,5]
+  putStrLn $ (++) "The answer  is: " $ show out
   putStrLn "Done"
 
-runProgramWithPhaseSequenceInFeedbackMode :: Program -> [Int] -> Int -> IO ComputerState
-runProgramWithPhaseSequenceInFeedbackMode program seq initialInput  =
-  do
+runProgramWithPhaseSequenceInFeedbackMode :: Program -> [Int] -> Int
+runProgramWithPhaseSequenceInFeedbackMode prog phaseSeq =
     --prime the amps with the phase sequence
-    ampStateA <- runProgramWithInputBuffer program [seq !! 0]
-    ampStateB <- runProgramWithInputBuffer program [seq !! 1]
-    ampStateC <- runProgramWithInputBuffer program [seq !! 2]
-    ampStateD <- runProgramWithInputBuffer program [seq !! 3]
-    ampStateE <- runProgramWithInputBuffer program [seq !! 4]
+    let
+      ampStateA = runProgramWithInputBuffer prog [phaseSeq !! 0]
+      ampStateB = runProgramWithInputBuffer prog [phaseSeq !! 1]
+      ampStateC = runProgramWithInputBuffer prog [phaseSeq !! 2]
+      ampStateD = runProgramWithInputBuffer prog [phaseSeq !! 3]
+      ampStateE = runProgramWithInputBuffer prog [phaseSeq !! 4]
 
     --let programA = program ampStateA
     --    programB = program ampStateB
@@ -56,26 +59,26 @@ runProgramWithPhaseSequenceInFeedbackMode program seq initialInput  =
     --    programD = program ampStateD
     --    programE = program ampStateE
 
-    return ampStateE
+      in 7
 
-runProgramWithPhaseSequence :: Program -> [Int] -> IO ComputerState
+runProgramWithPhaseSequence :: Program -> [Int] -> ComputerState
 runProgramWithPhaseSequence prog seq =
-  do
-    cs1 <- runProgramWithInputBuffer prog [seq !! 0,0]
+  let
+    cs1 = runProgramWithInputBuffer prog [seq !! 0,0]
 
-    let output = head $ outputBuffer cs1
-    cs2 <- runProgramWithInputBuffer prog [seq !! 1,output]
+    output1 = head $ outputBuffer cs1
+    cs2 = runProgramWithInputBuffer prog [seq !! 1,output1]
 
-    let output = head $ outputBuffer cs2
-    cs3 <- runProgramWithInputBuffer prog [seq !! 2,output]
+    output2 = head $ outputBuffer cs2
+    cs3 = runProgramWithInputBuffer prog [seq !! 2,output2]
 
-    let output = head $ outputBuffer cs3
-    cs4 <- runProgramWithInputBuffer prog [seq !! 3,output]
+    output3 = head $ outputBuffer cs3
+    cs4 = runProgramWithInputBuffer prog [seq !! 3,output3]
 
-    let output = head $ outputBuffer cs4
-    cs5 <- runProgramWithInputBuffer prog [seq !! 4,output]
+    output4 = head $ outputBuffer cs4
+    cs5 = runProgramWithInputBuffer prog [seq !! 4,output4]
 
-    return cs5
+    in cs5
 
 
 type Program = [Int]
@@ -126,11 +129,11 @@ executeComputerUntilHaltOrInput cs =
     _ -> cs
 
 
-runProgramWithInputBuffer :: Program -> [Int] -> IO ComputerState
+runProgramWithInputBuffer :: Program -> [Int] -> ComputerState
 runProgramWithInputBuffer prog inputBuf =
   let cs = ComputerState prog 0 OK inputBuf []
   in
-    pure $ runProgram' cs
+    runProgram' cs
 
 runProgram' :: ComputerState -> ComputerState
 runProgram' cs =
