@@ -5,6 +5,8 @@ testProgram1 = [3,15,3,16,1002,16,10,16,1,16,15,15,4,15,99,0,0] :: [Int]
 testProgram2 = [3,23,3,24,1002,24,10,24,1002,23,-1,23,101,5,23,23,1,24,23,23,4,23,99,0,0] :: [Int]
 testProgram3 = [3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0] :: [Int]
 
+testProgram4 = [3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5] :: [Int]
+
 main = do
   putStrLn "Hello"
 
@@ -30,11 +32,29 @@ main = do
   let lengthCheck = filter (\b -> length b > 1) outputBuffers
   putStrLn $ "Length check: there should be nothing with more than 1 result : " ++ (show lengthCheck)
 
-  --putStrLn $ show $ (map head outputBuffers)
   putStrLn $ "Length of result : " ++ (show $ length outputBuffers)
   putStrLn $ show $ maximum outputBuffers
   
-  putStrLn "\n\nHello"
+  putStrLn "\n\nPART 2\n\n"
+  runProgramWithPhaseSequenceInFeedbackMode testProgram4 [9,8,7,6,5] 0
+
+runProgramWithPhaseSequenceInFeedbackMode :: Program -> [Int] -> Int -> IO ComputerState
+runProgramWithPhaseSequenceInFeedbackMode program seq initialInput  =
+  do
+    --prime the amps with the phase sequence
+    ampStateA <- runProgramWithInputBuffer program [seq !! 0]
+    ampStateB <- runProgramWithInputBuffer program [seq !! 1]
+    ampStateC <- runProgramWithInputBuffer program [seq !! 2]
+    ampStateD <- runProgramWithInputBuffer program [seq !! 3]
+    ampStateE <- runProgramWithInputBuffer program [seq !! 4]
+
+    --let programA = program ampStateA
+    --    programB = program ampStateB
+    --    programC = program ampStateC
+    --    programD = program ampStateD
+    --    programE = program ampStateE
+
+    return ampStateE
 
 runProgramWithPhaseSequence :: Program -> [Int] -> IO ComputerState
 runProgramWithPhaseSequence program seq =
@@ -52,7 +72,7 @@ runProgramWithPhaseSequence program seq =
 
     let output = head $ outputBuffer cs4
     cs5 <- runProgramWithInputBuffer program [seq !! 4,output]
-  
+
     return cs5
 
 
@@ -79,6 +99,32 @@ data Instruction =
               , param3 :: Param
               } deriving Show
 
+
+executeComputerUntilHaltOrInput :: ComputerState -> IO ComputerState
+executeComputerUntilHaltOrInput cs =
+  do
+  case (status cs) of
+    WAITFORINPUT loc ->
+        return cs
+
+    OUTPUTTING value ->
+      do
+        runProgram' $ return cs {status=OK, outputBuffer = (outputBuffer cs) ++ [value]}
+
+    OK ->
+      if (program cs !! counter cs) == 99 --halt
+      then
+        return $ cs {status = HALTED}
+      else
+        let afterExecute = executeAtPosition cs
+            inc = getCounterIncrement $ getNextInstruction cs
+            newState = afterExecute {counter = (counter afterExecute) + inc}
+        in
+            executeComputerUntilHaltOrInput $ newState
+
+    _ -> return cs
+
+
 runProgramWithInputBuffer :: Program -> [Int] -> IO ComputerState
 runProgramWithInputBuffer program inputBuffer =
   let cs = ComputerState program 0 OK inputBuffer []
@@ -89,29 +135,21 @@ runProgram' :: IO ComputerState -> IO ComputerState
 runProgram' iocs =
   do
   cs <- iocs
-  --putStrLn $ "\nDerp : " ++ (show $ cs)
-  --putStrLn $ "Derp : " ++ (show $ getNextInstruction cs)
   case (status cs) of
     WAITFORINPUT loc ->
       do
-        --putStrLn $ "Providing input from input buffer:   " ++ (show $ inputBuffer cs)
         let inputValue = head $ inputBuffer cs
-        --putStrLn $ "Storing value : " ++ (show inputValue) ++ " to "
-        --  ++ "location : " ++ (show loc)
-  
-        let newProgram =
+            newProgram =
               (take loc (program cs)) ++ [inputValue]
               ++ (drop (loc+1) (program cs))
-        
+
         runProgram' $ return cs {program=newProgram, status=OK, inputBuffer = tail $ inputBuffer cs}
-  
+
     OUTPUTTING value ->
       do
-        --putStrLn $ "YESSSSSSS THE OUTPUT IS : " ++ (show value)
         runProgram' $ return cs {status=OK, outputBuffer = (outputBuffer cs) ++ [value]}
 
     OK ->
-                       
       if (program cs !! counter cs) == 99 --halt
       then
         return $ cs {status = HALTED}
@@ -123,7 +161,7 @@ runProgram' iocs =
             runProgram' $ return newState
 
     _ -> return cs
-  
+
 getCounterIncrement :: Instruction -> Int
 getCounterIncrement instruction =
   case opcode instruction of
