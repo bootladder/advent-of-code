@@ -111,30 +111,6 @@ data Instruction =
               } deriving Show
 
 
-executeComputerUntilHaltOrInput :: ComputerState -> ComputerState
-executeComputerUntilHaltOrInput cs =
-  do
-  case (status cs) of
-    WAITFORINPUT _ ->
-        cs
-
-    OUTPUTTING value ->
-        runProgram' cs {status=OK, outputBuffer = (outputBuffer cs) ++ [value]}
-
-    OK ->
-      if (program cs !! counter cs) == 99 --halt
-      then
-        cs {status = HALTED}
-      else
-        let afterExecute = executeAtPosition cs
-            inc = getCounterIncrement $ getNextInstruction cs
-            newState = afterExecute {counter = (counter afterExecute) + inc}
-        in
-            executeComputerUntilHaltOrInput $ newState
-
-    _ -> cs
-
-
 runProgramWithInputBuffer :: Program -> [Int] -> ComputerState
 runProgramWithInputBuffer prog inputBuf =
   let cs = ComputerState prog 0 OK inputBuf []
@@ -143,20 +119,25 @@ runProgramWithInputBuffer prog inputBuf =
 
 runProgram' :: ComputerState -> ComputerState
 runProgram' cs =
-  do
   case (status cs) of
     WAITFORINPUT loc ->
-      do
+      if null $ inputBuffer cs
+      then cs
+      else
         let inputValue = head $ inputBuffer cs
             newProgram =
               (take loc (program cs)) ++ [inputValue]
               ++ (drop (loc+1) (program cs))
 
-        runProgram' $ cs {program=newProgram, status=OK, inputBuffer = tail $ inputBuffer cs}
+        in runProgram' $ cs {program=newProgram
+                            , status=OK
+                            , inputBuffer = tail $ inputBuffer cs
+                            }
 
     OUTPUTTING value ->
-      do
-        runProgram' $ cs {status=OK, outputBuffer = (outputBuffer cs) ++ [value]}
+      runProgram' $ cs {status=OK
+                       , outputBuffer = (outputBuffer cs) ++ [value]
+                       }
 
     OK ->
       if (program cs !! counter cs) == 99 --halt
