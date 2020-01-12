@@ -34,7 +34,7 @@ main = do
 
   putStrLn $ "Length of result : " ++ (show $ length outputBuffers)
   putStrLn $ show $ maximum outputBuffers
-  
+
   putStrLn "\n\nPART 2\n\n"
   runProgramWithPhaseSequenceInFeedbackMode testProgram4 [9,8,7,6,5] 0
 
@@ -57,21 +57,21 @@ runProgramWithPhaseSequenceInFeedbackMode program seq initialInput  =
     return ampStateE
 
 runProgramWithPhaseSequence :: Program -> [Int] -> IO ComputerState
-runProgramWithPhaseSequence program seq =
+runProgramWithPhaseSequence prog seq =
   do
-    cs1 <- runProgramWithInputBuffer program [seq !! 0,0]
+    cs1 <- runProgramWithInputBuffer prog [seq !! 0,0]
 
     let output = head $ outputBuffer cs1
-    cs2 <- runProgramWithInputBuffer program [seq !! 1,output]
+    cs2 <- runProgramWithInputBuffer prog [seq !! 1,output]
 
     let output = head $ outputBuffer cs2
-    cs3 <- runProgramWithInputBuffer program [seq !! 2,output]
+    cs3 <- runProgramWithInputBuffer prog [seq !! 2,output]
 
     let output = head $ outputBuffer cs3
-    cs4 <- runProgramWithInputBuffer program [seq !! 3,output]
+    cs4 <- runProgramWithInputBuffer prog [seq !! 3,output]
 
     let output = head $ outputBuffer cs4
-    cs5 <- runProgramWithInputBuffer program [seq !! 4,output]
+    cs5 <- runProgramWithInputBuffer prog [seq !! 4,output]
 
     return cs5
 
@@ -89,7 +89,7 @@ data ComputerState =
 
 data Opcode = ADD|MULT|INPUT|OUTPUT|JUMPIFTRUE|JUMPIFFALSE|LESSTHAN|EQUALS|HALT|INVALID deriving Show
 
-data ParamType = Positional|Immediate deriving Show
+data ParamType = Positional|Immediate|Invalid deriving Show
 data Param = Param Int ParamType deriving Show
 
 data Instruction =
@@ -104,7 +104,7 @@ executeComputerUntilHaltOrInput :: ComputerState -> IO ComputerState
 executeComputerUntilHaltOrInput cs =
   do
   case (status cs) of
-    WAITFORINPUT loc ->
+    WAITFORINPUT _ ->
         return cs
 
     OUTPUTTING value ->
@@ -126,8 +126,8 @@ executeComputerUntilHaltOrInput cs =
 
 
 runProgramWithInputBuffer :: Program -> [Int] -> IO ComputerState
-runProgramWithInputBuffer program inputBuffer =
-  let cs = ComputerState program 0 OK inputBuffer []
+runProgramWithInputBuffer prog inputBuf =
+  let cs = ComputerState prog 0 OK inputBuf []
   in
     runProgram' $ return cs
 
@@ -173,6 +173,7 @@ getCounterIncrement instruction =
     JUMPIFFALSE -> 0
     LESSTHAN -> 4
     EQUALS -> 4
+    _ -> 999999
 
 executeAtPosition :: ComputerState -> ComputerState
 executeAtPosition cs =
@@ -204,9 +205,9 @@ executeAtPosition cs =
       let value = param2value (param1 instruction) (program cs)
       in
         cs {status=OUTPUTTING value}
-      
-    JUMPIFTRUE -> 
-      let p1val = param2value (param1 instruction) (program cs) 
+
+    JUMPIFTRUE ->
+      let p1val = param2value (param1 instruction) (program cs)
           p2val = param2value (param2 instruction) (program cs)
       in
         if p1val /= 0
@@ -214,9 +215,9 @@ executeAtPosition cs =
           cs {counter = p2val}
         else
           cs {counter = (counter cs) + 3}
-      
-    JUMPIFFALSE -> 
-      let p1val = param2value (param1 instruction) (program cs) 
+
+    JUMPIFFALSE ->
+      let p1val = param2value (param1 instruction) (program cs)
           p2val = param2value (param2 instruction) (program cs)
       in
         if p1val == 0
@@ -224,8 +225,8 @@ executeAtPosition cs =
           cs {counter = p2val}
         else
           cs {counter = (counter cs) + 3}
-      
-    LESSTHAN -> 
+
+    LESSTHAN ->
       let p1val = param2value (param1 instruction) (program cs)
           p2val = param2value (param2 instruction) (program cs)
           p3pos = getParamValue (param3 instruction)
@@ -235,8 +236,8 @@ executeAtPosition cs =
           cs{program = writeValueToProgram (program cs) 1 p3pos}
         else
           cs{program = writeValueToProgram  (program cs) 0 p3pos}
-      
-    EQUALS -> 
+
+    EQUALS ->
       let p1val = param2value (param1 instruction) (program cs)
           p2val = param2value (param2 instruction) (program cs)
           p3pos = getParamValue (param3 instruction)
@@ -248,27 +249,30 @@ executeAtPosition cs =
           cs{program = writeValueToProgram  (program cs) 0 p3pos}
 
     _ -> cs {status=BADINSTRUCTION}
-        
-        
 
 writeValueToProgram :: Program -> Int -> Int -> Program
-writeValueToProgram program val loc =
-  (take loc program) ++ [val] ++ (drop (loc + 1) program)
-    
+writeValueToProgram prog val loc =
+  (take loc prog) ++ [val] ++ (drop (loc + 1) prog)
+
 getNextInstruction :: ComputerState -> Instruction
-getNextInstruction cs = 
+getNextInstruction cs =
   let rawInstruction = drop (counter cs) (program cs)
       firstValue = rawInstruction !! 0
       rawOpcode  = firstValue `mod` 100
       param1type = case (firstValue `mod` 1000) `div` 100 of
-        1 -> Immediate
-        0 -> Positional
+                     1 -> Immediate
+                     0 -> Positional
+                     _ -> Invalid
+
       param1Value = if length rawInstruction > 1
                     then rawInstruction !! 1
                     else -1
+
       param2type = case (firstValue `mod` 10000) `div` 1000 of
-        1 -> Immediate
-        0 -> Positional
+                     1 -> Immediate
+                     0 -> Positional
+                     _ -> Invalid
+
       param2Value = if length rawInstruction > 2
                     then rawInstruction !! 2
                     else -1
@@ -276,7 +280,7 @@ getNextInstruction cs =
                     then rawInstruction !! 3
                     else -1
   in
-      
+
   Instruction { opcode = parseOpcode rawOpcode
               , param1 = Param param1Value param1type
               , param2 = Param param2Value param2type
@@ -298,22 +302,26 @@ parseOpcode i = case i of
 
 
 param2value :: Param -> Program -> Int
-param2value param program =
+param2value param prog =
   case param of
     Param i Immediate -> i
-    Param i Positional -> program !! i
+    Param i Positional -> prog !! i
+    Param _ Invalid -> 0
 
+getParamValue :: Param -> Int
 getParamValue (Param i _) = i
-  
 
-add x_val y_val result_pos program =
-  let 
-      sum = x_val + y_val
-  in
-    (take result_pos program) ++ [sum] ++ (drop (result_pos + 1) program)
 
-multiply x_val y_val result_pos program =
-  let 
-      product = x_val * y_val
+add :: Int -> Int -> Int -> Program -> Program
+add x_val y_val result_pos prog =
+  let
+      sum_ = x_val + y_val
   in
-    (take result_pos program) ++ [product] ++ (drop (result_pos + 1) program)
+    (take result_pos prog) ++ [sum_] ++ (drop (result_pos + 1) prog)
+
+multiply :: Int -> Int -> Int -> Program -> Program
+multiply x_val y_val result_pos prog =
+  let
+      product_ = x_val * y_val
+  in
+    (take result_pos prog) ++ [product_] ++ (drop (result_pos + 1) prog)
