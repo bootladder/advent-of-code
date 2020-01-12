@@ -37,6 +37,12 @@ main = do
 
   let cs = runProgramWithInputBuffer inputProgram [1]
     in putStrLn $ show $ cs
+
+  putStrLn "PART 2::::\n"
+
+  let cs = runProgramWithInputBuffer inputProgram [2]
+    in putStrLn $ show $ cs
+
   putStrLn "Done"
 
 
