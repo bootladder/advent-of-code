@@ -11,6 +11,7 @@ testProgram2 = [3,23,3,24,1002,24,10,24,1002,23,-1,23,101,5,23,23,1,24,23,23,4,2
 testProgram3 = [3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0] :: [Int]
 
 testProgram4 = [3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5] :: [Int]
+testProgram5 = [3,52,1001,52,-5,52,3,53,1,52,56,54,1007,54,5,55,1005,55,26,1001,54,-5,54,1105,1,12,1,53,54,53,1008,54,0,55,1001,55,1,55,2,53,55,53,4,53,1001,56,-1,56,1005,56,6,99,0,0,0,0,10] :: [Int]
 
 main :: IO ()
 main = do
@@ -45,7 +46,19 @@ main = do
 
   putStrLn "\n\nPART 2\n\n"
   let out = runProgramWithPhaseSequenceInFeedbackMode testProgram4 [9,8,7,6,5]
-  putStrLn $ (++) "The answer  is: " $ show out
+    in putStrLn $ (++) "Test Program 4 : The answer  is: " $ show out
+
+  let out = runProgramWithPhaseSequenceInFeedbackMode testProgram5 [9,7,8,5,6]
+    in putStrLn $ (++) "Test Program 5 : The answer  is: " $ show out
+
+
+  let allPossibleOutputsFeedbackMode = map
+                                       (runProgramWithPhaseSequenceInFeedbackMode inputProgram)
+                                       (permutations [5,6,7,8,9])
+
+
+    in putStrLn $ (++) "THE FINAL ANSWER IS::: " $ show $ maximum allPossibleOutputsFeedbackMode
+
   putStrLn "Done"
 
 runProgramWithPhaseSequenceInFeedbackMode :: Program -> [Int] -> Int
@@ -57,34 +70,26 @@ runProgramWithPhaseSequenceInFeedbackMode prog phaseSeq =
                             phaseSeq
     initialComputerStates = trace ("Initial Computer States: " ++ (showChainOfComputerStates initialComputerStates')) initialComputerStates'
 
-    finalStates1  = executeChainOfComputerStates initialComputerStates [0]
-    output1 = (outputBuffer $ last finalStates1)
-    finalStatesOutputConsumed1 = (init finalStates1) ++ [ (last finalStates1) {outputBuffer = []} ]
-
-
-    finalStates2  = executeChainOfComputerStates finalStatesOutputConsumed1 output1
-    output2 = (outputBuffer $ last finalStates2)
-    finalStatesOutputConsumed2 = (init finalStates2) ++ [ (last finalStates2) {outputBuffer = []} ]
-
-    finalStates3  = executeChainOfComputerStates finalStatesOutputConsumed2 output2
-    output3 = (outputBuffer $ last finalStates3)
-    finalStatesOutputConsumed3 = (init finalStates3) ++ [ (last finalStates3) {outputBuffer = []} ]
-
-    finalStates4  = executeChainOfComputerStates finalStatesOutputConsumed3 output3
-    output4 = (outputBuffer $ last finalStates4)
-    finalStatesOutputConsumed4 = (init finalStates4) ++ [ (last finalStates4) {outputBuffer = []} ]
-
-    finalStates5  = executeChainOfComputerStates finalStatesOutputConsumed4 output4
-    output5 = (outputBuffer $ last finalStates5)
-    finalStatesOutputConsumed5 = (init finalStates5) ++ [ (last finalStates5) {outputBuffer = []} ]
-
-    finalStates6  = executeChainOfComputerStates finalStatesOutputConsumed5 output5
-    output6 = (outputBuffer $ last finalStates6)
-    finalStatesOutputConsumed6 = (init finalStates6) ++ [ (last finalStates6) {outputBuffer = []} ]
-
-  
+    finalComputerStates = loopExecuteChain initialComputerStates [0]
   in
-    head output6
+    head $ outputBuffer $ last finalComputerStates
+
+loopExecuteChain :: [ComputerState] -> [Int] -> [ComputerState]
+loopExecuteChain states initialInput =
+  let
+    iterationResult = executeChainOfComputerStates states initialInput
+  in
+    if isHalted $ last iterationResult
+    then iterationResult
+    else
+      let
+        output = (outputBuffer $ last iterationResult)
+        iterationResultWithOutputConsumed = (init iterationResult) ++ [ (last iterationResult) {outputBuffer = []} ]
+      in
+        loopExecuteChain iterationResultWithOutputConsumed output
+
+  where isHalted cs =
+          (status cs) == HALTED
 
 executeChainOfComputerStates :: [ComputerState] -> [Int] -> [ComputerState]
 executeChainOfComputerStates states initialInput =
@@ -98,11 +103,14 @@ executeChainOfComputerStates states initialInput =
              newlist = (init l) ++ [(last l) {outputBuffer = []}]
              newState = runProgram $ cs {inputBuffer = (inputBuffer cs) ++ previousOutput}
            in
-             trace ("Progress so far: " ++ (showChainOfComputerStates $ newlist ++ [newState])) (newlist ++ [newState])
+             --trace ("Progress so far: " ++ (showChainOfComputerStates $ newlist ++ [newState]))
+             (newlist ++ [newState])
         )
 
         [defaultComputerState {outputBuffer = initialInput}]
-        (trace ("\n\nInput States: \n" ++ (showChainOfComputerStates states)) states)
+        --(trace ("\n\nInput States: \n" ++ (showChainOfComputerStates states))
+         states
+        --)
   in
     trace ("\n\nChain Complete: " ++ (showChainOfComputerStates (tail newstates))) (tail newstates)
 
@@ -125,7 +133,7 @@ runProgramWithPhaseSequence prog phaseSeq =
 
 type Program = [Int]
 type Counter = Int
-data Status  = OK|WAITFORINPUT Int|OUTPUTTING Int|HALTED|BADINSTRUCTION deriving Show
+data Status  = OK|WAITFORINPUT Int|OUTPUTTING Int|HALTED|BADINSTRUCTION deriving (Show, Eq)
 data ComputerState =
   ComputerState { computerId :: String
                 , program :: Program
