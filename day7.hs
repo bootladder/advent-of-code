@@ -1,6 +1,11 @@
 import Data.List.Split
 import Data.List
 
+import Debug.Trace
+
+myTrace :: (Show a) => String -> a -> a
+myTrace comment t = trace (comment ++ show t) t
+
 testProgram1 = [3,15,3,16,1002,16,10,16,1,16,15,15,4,15,99,0,0] :: [Int]
 testProgram2 = [3,23,3,24,1002,24,10,24,1002,23,-1,23,101,5,23,23,1,24,23,23,4,23,99,0,0] :: [Int]
 testProgram3 = [3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0] :: [Int]
@@ -11,32 +16,32 @@ main :: IO ()
 main = do
   putStrLn "Hello"
 
-  let cs = runProgramWithPhaseSequence testProgram1 [4,3,2,1,0]
-    in putStrLn $ "\n\nFirst Output : " ++ (show $ outputBuffer cs)
+  --let cs = runProgramWithPhaseSequence testProgram1 [4,3,2,1,0]
+  --  in putStrLn $ "\n\nFirst Output : " ++ (show $ outputBuffer cs)
 
-  let cs = runProgramWithPhaseSequence testProgram2 [0,1,2,3,4]
-    in putStrLn $ "\n\nFirst Output : " ++ (show $ outputBuffer cs)
+  --let cs = runProgramWithPhaseSequence testProgram2 [0,1,2,3,4]
+  --  in putStrLn $ "\n\nFirst Output : " ++ (show $ outputBuffer cs)
 
-  let cs = runProgramWithPhaseSequence testProgram3 [1,0,4,3,2]
-    in putStrLn $ "\n\nFirst Output : " ++ (show $ outputBuffer cs)
+  --let cs = runProgramWithPhaseSequence testProgram3 [1,0,4,3,2]
+  --  in putStrLn $ "\n\nFirst Output : " ++ (show $ outputBuffer cs)
 
-  s <- readFile "day7-input.txt"
+  --s <- readFile "day7-input.txt"
 
-  let inputProgram = map read $ splitOn "," s :: [Int]
+  --let inputProgram = map read $ splitOn "," s :: [Int]
 
-      allPossibleOutputs = map
-                           (runProgramWithPhaseSequence inputProgram)
-                           (permutations [0,1,2,3,4])
+  --    allPossibleOutputs = map
+  --                         (runProgramWithPhaseSequence inputProgram)
+  --                         (permutations [0,1,2,3,4])
 
-      outputBuffers = map outputBuffer allPossibleOutputs
+  --    outputBuffers = map outputBuffer allPossibleOutputs
 
-      lengthCheck = filter (\b -> length b > 1) outputBuffers
+  --    lengthCheck = filter (\b -> length b > 1) outputBuffers
 
-  putStrLn $ "Length check: there should be nothing with more than 1 result : "
-    ++ (show lengthCheck)
+  --putStrLn $ "Length check: there should be nothing with more than 1 result : "
+  --  ++ (show lengthCheck)
 
-  putStrLn $ (++) "Length of result : " $ show $ length outputBuffers
-  putStrLn $ (++) "The answer is: " $ show $ maximum outputBuffers
+  --putStrLn $ (++) "Length of result : " $ show $ length outputBuffers
+  --putStrLn $ (++) "The answer is: " $ show $ maximum outputBuffers
 
   putStrLn "\n\nPART 2\n\n"
   let out = runProgramWithPhaseSequenceInFeedbackMode testProgram4 [9,8,7,6,5]
@@ -45,21 +50,36 @@ main = do
 
 runProgramWithPhaseSequenceInFeedbackMode :: Program -> [Int] -> Int
 runProgramWithPhaseSequenceInFeedbackMode prog phaseSeq =
-    --prime the amps with the phase sequence
-    let
-      ampStateA = runProgramWithInputBuffer prog [phaseSeq !! 0]
-      ampStateB = runProgramWithInputBuffer prog [phaseSeq !! 1]
-      ampStateC = runProgramWithInputBuffer prog [phaseSeq !! 2]
-      ampStateD = runProgramWithInputBuffer prog [phaseSeq !! 3]
-      ampStateE = runProgramWithInputBuffer prog [phaseSeq !! 4]
+  -- create initial computer states
+  let
+    initialComputerStates = map
+                            (\phase -> (ComputerState prog 0 OK [phase] []))
+                            phaseSeq
 
-    --let programA = program ampStateA
-    --    programB = program ampStateB
-    --    programC = program ampStateC
-    --    programD = program ampStateD
-    --    programE = program ampStateE
+    finalStates1  = executeChainOfComputerStates initialComputerStates [0]
+    finalStates2  = executeChainOfComputerStates finalStates1 (outputBuffer $ last finalStates1)
+    finalStates3  = executeChainOfComputerStates finalStates2 (outputBuffer $ last finalStates2)
+  in
+    head $ outputBuffer $ last finalStates3
 
-      in 7
+executeChainOfComputerStates :: [ComputerState] -> [Int] -> [ComputerState]
+executeChainOfComputerStates states initialInput =
+  let newstates =
+        foldl
+        (\l cs' ->
+           let
+             cs = cs'
+             previousOutput' = outputBuffer $ last l
+             previousOutput = previousOutput'
+             newState = runProgram $ cs {inputBuffer = (inputBuffer cs) ++ previousOutput}
+           in
+             l ++ [newState]
+        )
+
+        [defaultComputerState {outputBuffer = initialInput}]
+        states
+  in
+    myTrace "\n\nChain Complete: " (tail newstates)
 
 runProgramWithPhaseSequence :: Program -> [Int] -> ComputerState
 runProgramWithPhaseSequence prog phaseSeq =
