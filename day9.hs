@@ -124,16 +124,16 @@ executeAtPosition cs =
   in
     case opcode instruction of
     ADD ->
-      let p1val = param2value (param1 instruction) (program cs)
-          p2val = param2value (param2 instruction) (program cs)
+      let p1val = param2value (param1 instruction) cs
+          p2val = param2value (param2 instruction) cs
           p3pos = getParamValue (param3 instruction)
           newProgram = add p1val p2val p3pos $ program cs
       in
         cs {program=newProgram}
 
     MULT ->
-      let p1val = param2value (param1 instruction) (program cs)
-          p2val = param2value (param2 instruction) (program cs)
+      let p1val = param2value (param1 instruction) cs
+          p2val = param2value (param2 instruction) cs
           p3pos = getParamValue (param3 instruction)
           newProgram = multiply p1val p2val p3pos $ program cs
       in
@@ -145,13 +145,13 @@ executeAtPosition cs =
         cs {status=WAITFORINPUT loc}
 
     OUTPUT ->
-      let value = param2value (param1 instruction) (program cs)
+      let value = param2value (param1 instruction) cs
       in
         cs {status=OUTPUTTING value}
 
     JUMPIFTRUE ->
-      let p1val = param2value (param1 instruction) (program cs)
-          p2val = param2value (param2 instruction) (program cs)
+      let p1val = param2value (param1 instruction) cs
+          p2val = param2value (param2 instruction) cs
       in
         if p1val /= 0
         then
@@ -160,8 +160,8 @@ executeAtPosition cs =
           cs {counter = (counter cs) + 3}
 
     JUMPIFFALSE ->
-      let p1val = param2value (param1 instruction) (program cs)
-          p2val = param2value (param2 instruction) (program cs)
+      let p1val = param2value (param1 instruction) cs
+          p2val = param2value (param2 instruction) cs
       in
         if p1val == 0
         then
@@ -170,8 +170,8 @@ executeAtPosition cs =
           cs {counter = (counter cs) + 3}
 
     LESSTHAN ->
-      let p1val = param2value (param1 instruction) (program cs)
-          p2val = param2value (param2 instruction) (program cs)
+      let p1val = param2value (param1 instruction) cs
+          p2val = param2value (param2 instruction) cs
           p3pos = getParamValue (param3 instruction)
       in
         if p1val < p2val
@@ -181,8 +181,8 @@ executeAtPosition cs =
           cs{program = writeValueToProgram  (program cs) 0 p3pos}
 
     EQUALS ->
-      let p1val = param2value (param1 instruction) (program cs)
-          p2val = param2value (param2 instruction) (program cs)
+      let p1val = param2value (param1 instruction) cs
+          p2val = param2value (param2 instruction) cs
           p3pos = getParamValue (param3 instruction)
       in
         if p1val == p2val
@@ -193,7 +193,7 @@ executeAtPosition cs =
 
     ADJUSTRELATIVEBASE ->
       let
-        value = param2value (param1 instruction) (program cs)
+        value = param2value (param1 instruction) cs
       in
         cs {relativeBase = (relativeBase cs) + value}
 
@@ -255,12 +255,12 @@ parseOpcode i = case i of
   _ -> INVALID
 
 
-param2value :: Param -> Program -> Int
-param2value param prog =
+param2value :: Param -> ComputerState -> Int
+param2value param cs =
   case param of
     Param i Immediate -> i
-    Param i Positional -> prog !! i
-    Param i Relative -> 3
+    Param i Positional -> (program cs) !! i
+    Param i Relative -> (program cs) !! ((relativeBase cs) + i)
     Param _ Invalid -> 0
 
 getParamValue :: Param -> Int
