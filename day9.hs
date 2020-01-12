@@ -147,7 +147,7 @@ executeAtPosition cs =
     ADD ->
       let p1val = param2value (param1 instruction) cs
           p2val = param2value (param2 instruction) cs
-          p3pos = getParamValue (param3 instruction)
+          p3pos = param2position (param3 instruction) cs
           newProgram = add p1val p2val p3pos $ program cs
       in
         cs {program=newProgram}
@@ -155,7 +155,7 @@ executeAtPosition cs =
     MULT ->
       let p1val = param2value (param1 instruction) cs
           p2val = param2value (param2 instruction) cs
-          p3pos = getParamValue (param3 instruction)
+          p3pos = param2position (param3 instruction) cs
           newProgram = multiply p1val p2val p3pos $ program cs
       in
         cs {program=newProgram}
@@ -197,7 +197,7 @@ executeAtPosition cs =
     LESSTHAN ->
       let p1val = param2value (param1 instruction) cs
           p2val = param2value (param2 instruction) cs
-          p3pos = getParamValue (param3 instruction)
+          p3pos = param2position (param3 instruction) cs
       in
         if p1val < p2val
         then
@@ -208,7 +208,7 @@ executeAtPosition cs =
     EQUALS ->
       let p1val = param2value (param1 instruction) cs
           p2val = param2value (param2 instruction) cs
-          p3pos = getParamValue (param3 instruction)
+          p3pos = param2position (param3 instruction) cs
       in
         if p1val == p2val
         then
@@ -242,7 +242,7 @@ getNextInstruction cs =
                      _ -> Invalid
 
       param1Value =
-                    (program cs) ! ((counter cs) + 1)
+        (program cs) ! ((counter cs) + 1)
 
       param2type = case (firstValue `mod` 10000) `div` 1000 of
                      2 -> Relative
@@ -251,17 +251,22 @@ getNextInstruction cs =
                      _ -> Invalid
 
       param2Value =
-                    (program cs) ! ((counter cs) + 2)
+        (program cs) ! ((counter cs) + 2)
 
-      -- check relative param here
-      param3Value = 
-                    (program cs) ! ((counter cs) + 3)
+      param3type = case (firstValue `mod` 100000) `div` 10000 of
+                     2 -> Relative
+                     1 -> Immediate
+                     0 -> Positional
+                     _ -> Invalid
+
+      param3Value =
+        (program cs) ! ((counter cs) + 3)
   in
 
   Instruction { opcode = parseOpcode rawOpcode
               , param1 = Param param1Value param1type
               , param2 = Param param2Value param2type
-              , param3 = Param param3Value Positional
+              , param3 = Param param3Value param3type
               }
 
 parseOpcode :: Int -> Opcode
@@ -286,6 +291,14 @@ param2value param cs =
     Param i Positional -> (program cs) ! i
     Param i Relative -> (program cs) ! ((relativeBase cs) + i)
     Param _ Invalid -> 0
+
+param2position :: Param -> ComputerState -> Int
+param2position param cs =
+  case param of
+    Param i Positional -> i
+    Param i Relative -> ((relativeBase cs) + i)
+    Param _ _ -> -999
+
 
 getParamValue :: Param -> Int
 getParamValue (Param i _) = i
