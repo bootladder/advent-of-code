@@ -1,21 +1,23 @@
 import Data.List.Split
 import Data.List
 
-data Image = Image { width :: Int
+data EncodedImage = EncodedImage { width :: Int
                    , height :: Int
                    , contents :: [Int]
                    }deriving Show
 
-testImage :: Image
-testImage = Image 3 2 $ parseImage "123456789012"
+type DecodedImage = [[Int]]
+
+testImage :: EncodedImage
+testImage = EncodedImage 3 2 $ parseImage "123456789012"
 
 parseImage :: String -> [Int]
 parseImage s = map (\c -> read [c]) s :: [Int]
 
-image2Layers :: Image -> [[Int]]
+image2Layers :: EncodedImage -> [[Int]]
 image2Layers image = chunksOf ((width image) * (height image)) (contents image)
 
-part1 :: Image -> Int
+part1 :: EncodedImage -> Int
 part1 image =
   let layers = image2Layers image
 
@@ -31,12 +33,47 @@ part1 image =
   in
     answer
 
+
+  -----------------------------------
+
+renderEncodedImage :: EncodedImage -> String
+renderEncodedImage image =
+  let
+    decodedImage = decodeImage image
+    renderedRows = map renderRow decodedImage
+
+  in
+    unlines renderedRows
+
+renderRow :: [Int] -> String
+renderRow is = map (\i -> if i == 0 then ' ' else 'X') is
+
+
+decodeImage :: EncodedImage -> DecodedImage
+decodeImage e =
+  let
+    layers = image2Layers e
+    layeredPixels = transpose layers
+    visibleLayer = map topVisiblePixel layeredPixels
+    rowsOfPixels = chunksOf (width e) visibleLayer
+  in rowsOfPixels
+
+
+-- skip pixel values == 2
+topVisiblePixel :: [Int] -> Int
+topVisiblePixel layersOfPixel = head $ dropWhile (== 2) layersOfPixel
+
+readInputImage :: IO String
+readInputImage = (readFile "day8-input.txt") >>= (pure . reverse . dropWhile (=='\n') . reverse)
+
 main :: IO ()
 main = do
-  s <- (readFile "day8-input.txt") >>= (pure . reverse . dropWhile (=='\n') . reverse)
+  s <- readInputImage
 
-  let inputImage = Image 25 6 $ parseImage s
+  let inputImage = EncodedImage 25 6 $ parseImage s
 
   putStrLn $ "The answer is " ++ (show $ part1 inputImage)
 
   putStrLn $ "\n\npart 2"
+
+  putStrLn $ renderEncodedImage inputImage
