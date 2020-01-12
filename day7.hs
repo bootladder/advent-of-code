@@ -115,10 +115,10 @@ runProgramWithInputBuffer :: Program -> [Int] -> ComputerState
 runProgramWithInputBuffer prog inputBuf =
   let cs = ComputerState prog 0 OK inputBuf []
   in
-    runProgram' cs
+    runProgram cs
 
-runProgram' :: ComputerState -> ComputerState
-runProgram' cs =
+runProgram :: ComputerState -> ComputerState
+runProgram cs =
   case (status cs) of
     WAITFORINPUT loc ->
       if null $ inputBuffer cs
@@ -129,13 +129,13 @@ runProgram' cs =
               (take loc (program cs)) ++ [inputValue]
               ++ (drop (loc+1) (program cs))
 
-        in runProgram' $ cs {program=newProgram
+        in runProgram $ cs {program=newProgram
                             , status=OK
                             , inputBuffer = tail $ inputBuffer cs
                             }
 
     OUTPUTTING value ->
-      runProgram' $ cs {status=OK
+      runProgram $ cs {status=OK
                        , outputBuffer = (outputBuffer cs) ++ [value]
                        }
 
@@ -148,7 +148,7 @@ runProgram' cs =
             inc = getCounterIncrement $ getNextInstruction cs
             newState = afterExecute {counter = (counter afterExecute) + inc}
         in
-            runProgram' newState
+            runProgram newState
 
     _ -> cs
 
