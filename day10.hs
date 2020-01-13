@@ -70,7 +70,10 @@ parseAllAsteroidCoordinates s =
 
 countAsteroidsInLineOfSight :: [(Int,Int)] -> (Int,Int) -> Int
 countAsteroidsInLineOfSight allAsteroids asteroid =
-  let count = length $ filter (areCoordinatesInLineOfSight allAsteroids asteroid) allAsteroids
+  let count = length $
+              filter
+              (areCoordinatesInLineOfSight allAsteroids asteroid)
+              allAsteroids
   in
     count - 1  -- remove 1 extra due to inclusive match
 
@@ -93,15 +96,15 @@ areCoordinatesInLineOfSight allAsteroids a1 a2 =
 
   let slope = calcSlope a1 a2
 
-      asteroidsInLine =
-        filter (\a -> slope == calcSlope a1 a) allAsteroids
-
       asteroidsInBetween =
-        filter (\a -> isBetween a a1 a2) asteroidsInLine
+        filter (\a -> isBetween a a1 a2) allAsteroids
+
+      asteroidsInLine =
+        filter (\a -> slope == calcSlope a1 a) asteroidsInBetween
 
   in
     -- self will miss due to slope NaN, other end will hit
-    if length asteroidsInBetween > 1
+    if length asteroidsInLine > 1
     then False
     else True
 
@@ -114,7 +117,14 @@ main = do
 
   let asteroids = parseAllAsteroidCoordinates s
 
-  let counts = map (\a -> (a, countAsteroidsInLineOfSight asteroids a)) asteroids
-      bestAsteroid = maximumBy (\((_,_),a) ((_,_),b) -> compare a b) counts
+  let counts = map
+               (\a -> (a, countAsteroidsInLineOfSight asteroids a))
+               asteroids
+
+      bestAsteroid = maximumBy
+                     (\((_,_),a) ((_,_),b) -> compare a b)
+                     counts
 
   putStrLn $ show bestAsteroid
+
+  putStrLn $ "\nPART 2\n"
