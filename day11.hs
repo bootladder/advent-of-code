@@ -41,13 +41,24 @@ data RobotDescriptor = RobotDescriptor { grid :: Array (Int,Int) Int
                                        } deriving Show
 
 initialGrid :: Array (Int,Int) Int
-initialGrid = (listArray ((0,0),(10,10)) [(0) | x<-[0..10], y<-[0..10]])
+initialGrid = (listArray ((0,0),(10,10)) [0 | x<-[0..], y<-[0..]])
 
 initialRobotDescriptor :: RobotDescriptor
 initialRobotDescriptor =
   RobotDescriptor { grid = initialGrid
-                  , location = (50,50)
+                  , location = (5,5)
                   , direction = UP}
+
+renderGrid :: RobotDescriptor -> String
+renderGrid rd =
+  let grid' = (grid rd)
+  in
+    concat $ map (renderRow grid') [0..10]
+  where renderRow grid'' rowNum =
+          [if (grid'' ! (rowNum,i) == 0)
+            then '-'
+            else '#'
+          | i<-[0..10]] ++ "\n"
 
 main :: IO ()
 main = do
@@ -73,7 +84,9 @@ ioLoop cs rd =
   do
     let
       robotColor = (grid rd) ! (location rd)
-      newcs = runProgram cs{inputBuffer = [robotColor]}
+      newcs = runProgram cs{inputBuffer = [robotColor]
+                           ,outputBuffer = []
+                           }
 
     finalRd <- case (status newcs) of
            HALTED -> return rd
@@ -87,12 +100,15 @@ ioLoop cs rd =
                    changeDirection (direction rd) newDirectionCommand
                  newGrid = (grid rd) // [((location rd), newColor)]
                  newLocation = moveRobot (location rd) newDirection
-                 newRd = rd{grid=newGrid
+                 newRd = rd{ grid=newGrid
                            , location=newLocation
                            , direction=newDirection
                            }
              in
-               do putStrLn $ "CONTINUE"
+               do putStrLn $ "NEW GRID: " ++ (renderGrid newRd)
+                  putStrLn $ "NEW DIRECTION: " ++ (show $ direction newRd)
+                  putStrLn $ "NEW LOCATION: " ++ (show $ location newRd)
+                  putStrLn $ "CONTINUE"
                   ioLoop newcs newRd
            _ ->
              do
@@ -156,7 +172,7 @@ runProgramWithInputBuffer prog inputBuf =
 
 runProgram :: ComputerState -> ComputerState
 runProgram cs =
-  case trace ("Running Computer : " ++ (show cs)) (status cs) of
+  case trace ("Running Computer : " ++ (show cs) ++ (show $ program cs)) (status cs) of
     WAITFORINPUT loc ->
       --terminate.
       --allow the outside to fill the inputBuffer and run again
