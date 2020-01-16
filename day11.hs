@@ -1,6 +1,7 @@
 import Data.List.Split
 import Data.List
 import Data.Array
+import Intcode
 
 import Debug.Trace
 
@@ -53,9 +54,9 @@ renderGrid :: RobotDescriptor -> String
 renderGrid rd =
   let grid' = (grid rd)
   in
-    concat $ map (renderRow grid') [0..10]
+    concat $ map (renderRow grid') $ reverse [0..10]
   where renderRow grid'' rowNum =
-          [if (grid'' ! (rowNum,i) == 0)
+          [if (grid'' ! (i,rowNum) == 0)
             then '-'
             else '#'
           | i<-[0..10]] ++ "\n"
@@ -72,23 +73,53 @@ main = do
   let cs = defaultComputerState {computerId = "robot program"
                                 ,program=inputProgram}
 
+  --let finalRobotDescriptor = fakeioLoop cs initialRobotDescriptor fakeOutputBuffer
   finalRobotDescriptor <- ioLoop cs initialRobotDescriptor
 
   putStrLn $ show finalRobotDescriptor
+  putStrLn $ renderGrid finalRobotDescriptor
   putStrLn "\n"
   putStrLn "Done"
 
 
+fakeOutputBuffer :: [Int]
+fakeOutputBuffer = [1,0,0,0,1,0,1,0,0,1,1,0,1,0]
+
+fakeioLoop :: ComputerState ->
+              RobotDescriptor ->
+              [Int] ->
+              RobotDescriptor
+fakeioLoop cs rd outputBuf =
+  if length outputBuf == 0
+  then rd
+  else
+    let
+      nextOutBuf = take 2 outputBuf
+      robotColor = (grid rd) ! (location rd)
+      newColor = (head $ nextOutBuf)
+      newDirectionCommand = (last $ nextOutBuf)
+      newDirection =
+        changeDirection (direction rd) newDirectionCommand
+      newGrid = (grid rd) // [((location rd), newColor)]
+      newLocation = moveRobot (location rd) newDirection
+      newRd = rd{ grid=newGrid
+                , location=newLocation
+                , direction=newDirection
+                }
+    in
+      fakeioLoop cs newRd $ drop 2 outputBuf
+
 ioLoop :: ComputerState -> RobotDescriptor -> IO RobotDescriptor
 ioLoop cs rd =
   do
+    putStrLn "STARTING LOOP"
+    putStrLn $ renderGrid rd
     let
       robotColor = (grid rd) ! (location rd)
       newcs = runProgram cs{inputBuffer = [robotColor]
-                           ,outputBuffer = []
                            }
 
-    finalRd <- case (status newcs) of
+    case (status newcs) of
            HALTED -> return rd
            WAITFORINPUT _ ->
              -- paint the square, turn the robot
@@ -115,9 +146,6 @@ ioLoop cs rd =
                putStrLn $ "FAIL: INVALID STATE"
                return rd
 
-    --putStrLn $ show finalRd
-    --putStrLn $ "Did it"
-    return finalRd
 
 
 type Program = Array Int Int
@@ -138,6 +166,10 @@ showComputerState :: ComputerState -> String
 showComputerState cs = "ComputerState: ID : " ++ (computerId cs) ++ " Counter = " ++ (show $ counter cs) ++ " Status = " ++ (show $ status cs) ++ " relativeBase = " ++ (show $ relativeBase cs) ++ " inputbuffer = " ++ (show $ inputBuffer cs) ++ " outputBuffer = " ++ (show $ outputBuffer cs)
 
 instance Show ComputerState where show = showComputerState
+
+showCurrentInstruction :: ComputerState -> String
+showCurrentInstruction cs =
+  show $ getNextInstruction cs
 
 defaultComputerState :: ComputerState
 defaultComputerState =
@@ -172,7 +204,7 @@ runProgramWithInputBuffer prog inputBuf =
 
 runProgram :: ComputerState -> ComputerState
 runProgram cs =
-  case trace ("Running Computer : " ++ (show cs) ++ (show $ program cs)) (status cs) of
+  case trace ("Running Computer : " ++ (show cs) ) (status cs) of
     WAITFORINPUT loc ->
       --terminate.
       --allow the outside to fill the inputBuffer and run again
