@@ -36,6 +36,7 @@ moveRobot (x,y) RIGHT = (x+1,y)
 moveRobot _ NOWHERE = (-999,-999)
 
 data RobotDescriptor = RobotDescriptor { grid :: Array (Int,Int) Int
+                                       , counterGrid :: Array (Int,Int) Int
                                        , location :: (Int,Int)
                                        , direction :: Direction
                                        } deriving Show
@@ -45,21 +46,37 @@ initialGridSize = 100
 initialGrid :: Array (Int,Int) Int
 initialGrid = (listArray ((0,0),(initialGridSize,initialGridSize)) [0 | x<-[0..], y<-[0..]])
 
+initialCounterGrid :: Array (Int,Int) Int
+initialCounterGrid = (listArray ((0,0),(initialGridSize,initialGridSize)) [0 | x<-[0..], y<-[0..]])
+
 initialRobotDescriptor :: RobotDescriptor
 initialRobotDescriptor =
   let mid = round $ (fromIntegral initialGridSize)/2
   in
     RobotDescriptor { grid = initialGrid
-                  , location = (mid,mid)
-                  , direction = UP}
+                    , counterGrid = initialGrid
+                    , location = (mid,mid)
+                    , direction = UP}
+
+initialRobotDescriptorPart2 :: RobotDescriptor
+initialRobotDescriptorPart2 =
+  let mid = round $ (fromIntegral initialGridSize)/2
+  in
+    RobotDescriptor { grid = initialGrid // [((mid,mid),1)]
+                    , counterGrid = initialGrid
+                    , location = (mid,mid)
+                    , direction = UP}
 
 renderGrid :: RobotDescriptor -> Int -> String
-renderGrid rd size =
-  let grid' = (grid rd)
-  in
-    concat $ map (renderRow grid') $ reverse [0..size]
-  where renderRow grid'' rowNum =
-          [if (grid'' ! (i,rowNum) == 0)
+renderGrid rd size = renderGrid'' (grid rd) size
+
+renderCounterGrid :: RobotDescriptor -> Int -> String
+renderCounterGrid rd size = renderGrid'' (counterGrid rd) size
+
+renderGrid'' grid size =
+  concat $ map (renderRow grid) $ reverse [0..size]
+  where renderRow grid rowNum =
+          [if (grid ! (i,rowNum) == 0)
             then '-'
             else '#'
           | i<-[0..size]] ++ "\n"
@@ -77,10 +94,12 @@ main = do
                                 ,program=inputProgram}
 
   --let finalRobotDescriptor = fakeioLoop cs initialRobotDescriptor fakeOutputBuffer
-  finalRobotDescriptor <- ioLoop cs initialRobotDescriptor
+  finalRobotDescriptor <- ioLoop cs initialRobotDescriptorPart2 
 
   putStrLn $ show finalRobotDescriptor
   putStrLn $ renderGrid finalRobotDescriptor initialGridSize
+  putStrLn $ renderCounterGrid finalRobotDescriptor initialGridSize
+  putStrLn $ show $ length $ filter (== '#') $ renderCounterGrid finalRobotDescriptor initialGridSize
   putStrLn "\n"
   putStrLn "Done"
 
@@ -127,6 +146,7 @@ ioLoop cs rd =
            HALTED -> return rd
            WAITFORINPUT _ ->
              -- paint the square, turn the robot
+             -- add square to counterGrid
              -- advance the robot, put the new square color
              -- in the input buffer
              let newColor = (head $ outputBuffer newcs)
@@ -134,8 +154,10 @@ ioLoop cs rd =
                  newDirection =
                    changeDirection (direction rd) newDirectionCommand
                  newGrid = (grid rd) // [((location rd), newColor)]
+                 newCounterGrid = (counterGrid rd) // [((location rd), 1)]
                  newLocation = moveRobot (location rd) newDirection
                  newRd = rd{ grid=newGrid
+                           , counterGrid=newCounterGrid
                            , location=newLocation
                            , direction=newDirection
                            }
