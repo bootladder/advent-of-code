@@ -7,6 +7,12 @@ testInput1 =
   ++ "\n<x=3, y=5, z=-1>"
   ++ "\n"
 
+testInput2 =
+  "<x=-8, y=-10, z=0>"
+  ++ "\n<x=5, y=5, z=10>"
+  ++ "\n<x=2, y=-7, z=3>"
+  ++ "\n<x=9, y=-8, z=-3>"
+
 data Moon = Moon { xPos::Int
                  , yPos::Int
                  , zPos::Int
@@ -29,7 +35,7 @@ parseMoon str =
         moonFromList _ = Moon 0 0 0 0 0 0 
 
 testMoons :: [Moon]
-testMoons = map parseMoon $ lines testInput1
+testMoons = map parseMoon $ lines testInput2
 
 getAllPairs :: [Moon] -> [(Moon,Moon)]
 getAllPairs z =
@@ -79,11 +85,25 @@ runSimulationNSteps n moons =
   in
     if n == 0 then moons else runSimulationNSteps (n-1) step
 
-main = do
-  putStrLn testInput1
+calculateEnergy :: Moon -> Int
+calculateEnergy moon =
+  let pot = abs (xPos moon) + abs(yPos moon) + abs(zPos moon)
+      kin = abs (xVel moon) + abs(yVel moon) + abs(zVel moon)
+  in
+    pot * kin
 
+calculateTotalEnergy :: [Moon] -> Int
+calculateTotalEnergy moons =
+  sum $ map calculateEnergy moons
+
+
+main = do
   putStrLn "hehlo"
-  putStrLn $ concat $ map ((++ "\n") . show ) $ getAllPairs testMoons
+  s <- readFile "day12-input.txt"
+  let moons = map parseMoon $ lines s
+      energy = calculateTotalEnergy $ runSimulationNSteps 1000 moons
+
+  putStrLn $ show energy
 
 printList :: (Show a) => [a] -> IO ()
 printList = mapM_  (putStrLn . show)
