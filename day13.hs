@@ -1,6 +1,8 @@
 import Intcode
 import Data.Array
 import Data.List.Split
+import Debug.Trace
+import Control.Concurrent.Thread.Delay
 
 boardSizeRows :: Int
 boardSizeRows = 27
@@ -46,7 +48,7 @@ renderGame game =
   let
     rows = map rowN [0..boardSizeRows]
 
-  in unlines rows
+  in (unlines rows) ++ "\n" ++ strBall ++ "\n" ++ strPaddle ++ "\n" ++ strScore
 
   where rowN n = concat $ map showCell [(board game) ! (x,n) | x <- [0..boardSizeCols]]
         showCell num =
@@ -58,24 +60,64 @@ renderGame game =
             4 -> "O"
             _ -> "?"
 
+        strBall = "Ball: " ++ (show $ ballPosX game)
+        strPaddle = "Paddle: " ++ (show $ paddlePosX game)
+        strScore = "Score: " ++ (show $ score game)
+
 applyOutputInstructionsToGame :: Game -> [[Int]] -> Game
 applyOutputInstructionsToGame game instructions =
   foldl (\accGame instruction ->
+           -- score
            if instruction !! 0 == -1 && instruction !! 1 == 0
            then accGame {score = instruction !! 2}
            else
              accGame { board = (board accGame) //
                                [((instruction !! 0, instruction !! 1), instruction !! 2)]
+
+                     , ballPosX = if instruction !! 2 == 4
+                                  then instruction !! 0
+                                  else (ballPosX accGame)
+
+                     , paddlePosX = if instruction !! 2 == 3
+                                  then instruction !! 0
+                                  else (paddlePosX accGame)
                      }
 
            ) game instructions
 
-initialGame :: Game
-initialGame = Game { score = 0
+blankGame :: Game
+blankGame = Game { score = 0
                    , board = gameBoard
                    , ballPosX = 0
                    , paddlePosX = 0
                    }
+
+playGame :: Game -> ComputerState -> IO (Game,ComputerState)
+playGame game cs =
+  let
+    joystickInput = if (paddlePosX game) < (ballPosX game)
+                    then (1)
+                    else if (paddlePosX game) > (ballPosX game)
+                         then (-1)
+                         else 0
+
+    csNext = runProgram $ cs { inputBuffer = [joystickInput]
+                             , outputBuffer = []}
+
+    gameNext = applyOutputInstructionsToGame
+               game
+               (chunksOf 3 (outputBuffer csNext))
+
+  in
+    if (status cs == HALTED)
+    then pure (gameNext, csNext)
+    else
+      do
+        putStr "\ESC[2J"
+        putStrLn (renderGame gameNext)
+        delay 10000
+        playGame gameNext csNext
+
 
 main :: IO ()
 main = do
@@ -87,35 +129,32 @@ main = do
 
 
   let programWithQuarter = inputProgram // [(0, 2)]
-      out = runProgram $ defaultComputerState {program=programWithQuarter}
-      initialOutputBuffer = outputBuffer out
+      csInitial = runProgram $ defaultComputerState {program=programWithQuarter}
+      initialOutputBuffer = outputBuffer csInitial
       initialOutputInstructions = chunksOf 3 initialOutputBuffer
 
       gameAfterFirstOutput = applyOutputInstructionsToGame
-                             initialGame
+                             blankGame
                              initialOutputInstructions
 
-  putStrLn $ renderGame gameAfterFirstOutput
+      -- by inspection
+      initialPaddleXPos = 22 :: Int
+      initialBallXPos = 20 :: Int
+      gameWithInitialPaddleAndBallPos =
+        gameAfterFirstOutput { ballPosX = initialBallXPos
+                             , paddlePosX = initialPaddleXPos
+                             }
+
+
+  putStrLn $ renderGame gameWithInitialPaddleAndBallPos
 
 
   putStrLn "Consuming the initial output buffer"
 
-  let csAfterFirstOutput = out {outputBuffer=[]}
+  let csReadyForFirstInput = csInitial {outputBuffer=[]}
 
-      initialPaddleXPos = 22 :: Int
-      initialBallXPos = 20 :: Int
+  (endGame, endCs) <- playGame gameWithInitialPaddleAndBallPos csReadyForFirstInput
 
-      initialJoystickInput = if initialPaddleXPos > initialBallXPos
-                             then (-1)
-                             else 1
-
-
-      csAfterFirstInput = runProgram $ csAfterFirstOutput {inputBuffer = take 1 $ repeat $ -1}
-
-      gameAfterFirstInput = applyOutputInstructionsToGame
-                            gameAfterFirstOutput
-                            (chunksOf 3 (outputBuffer csAfterFirstInput))
-
-  putStrLn $ renderGame gameAfterFirstInput
-  putStrLn $ showComputerState csAfterFirstInput
+  putStrLn $ renderGame endGame
+  putStrLn $ showComputerState endCs
   putStrLn "Done"
