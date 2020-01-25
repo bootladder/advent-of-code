@@ -48,22 +48,62 @@ getFormulaFor chemStr formulas =
 
 getListOfRawChemAmountsToMakeChemAmount :: Formula -> Int -> [Formula] -> [(String, Int)]
 getListOfRawChemAmountsToMakeChemAmount formula numChems formulas =
-  foldl
-  (\acc (inputChemStr, inputChemAmount) ->
-     let formulaForInput = getFormulaFor inputChemStr formulas
-         numReactions = ceiling $
-                        (fromIntegral numChems)
-                        /
-                        (fromIntegral (outputAmount formula))
-     in
-       if chemMadeFromOre inputChemStr formulas
-       then
-         acc ++ [(inputChemStr, inputChemAmount * numReactions)]
-       else
-         acc ++ getListOfRawChemAmountsToMakeChemAmount formulaForInput (numChems * inputChemAmount) formulas
-  )
-  []
-  (inputs formula)
+  let initial = [(outputChem formula, numChems)]
+  in
+    expandAndConsolidateUntilOnlyRawsLeft initial formulas
+  --foldl
+  --(\acc (inputChemStr, inputChemAmount) ->
+  --   let formulaForInput = getFormulaFor inputChemStr formulas
+  --       numReactions = ceiling $
+  --                      (fromIntegral numChems)
+  --                      /
+  --                      (fromIntegral (outputAmount formula))
+  --   in
+  --     if chemMadeFromOre inputChemStr formulas
+  --     then
+  --       acc ++ [(inputChemStr, inputChemAmount * numReactions)]
+  --     else
+  --       acc ++ getListOfRawChemAmountsToMakeChemAmount formulaForInput (numChems * inputChemAmount) formulas
+  --)
+  --[]
+  --(inputs formula)
+
+expandAndConsolidateUntilOnlyRawsLeft :: [(String,Int)] -> [Formula] -> [(String,Int)]
+expandAndConsolidateUntilOnlyRawsLeft l formulas =
+
+  let
+    onepass = consolidateListOfRawChems $ concat $ map expand l
+  in
+    trace ("\n\n ONEPASS: " ++ show onepass) $
+    if containsOnlyRawChems (filterNonZeroAmounts onepass) formulas
+    then onepass
+    else expandAndConsolidateUntilOnlyRawsLeft onepass formulas
+
+  where expand (chemStr,numChems) =
+            if chemMadeFromOre chemStr formulas
+            then
+              [(chemStr,numChems)]
+            else if numChems < 0 --waste
+            then [(chemStr,numChems)]
+            else
+              let formula = getFormulaFor chemStr formulas
+                  numReactions = ceiling $
+                                 (fromIntegral numChems)
+                                 /
+                                 (fromIntegral (outputAmount formula))
+
+                  waste = (numReactions * (outputAmount formula)) - numChems
+                  wasteTerm = trace ("\nWASTE IS :: " ++ (show waste)) $
+                              if waste > 0
+                              then [(chemStr, (-1)*waste)]
+                              else []
+              in
+                wasteTerm ++ map (\(inputChemStr, inputChemAmount) -> (inputChemStr, inputChemAmount * numReactions)) (inputs formula)
+
+        filterNonZeroAmounts = filter (\(_,i) -> i >= 0)
+
+containsOnlyRawChems :: [(String,Int)] -> [Formula] -> Bool
+containsOnlyRawChems l formulas = and $ map (\(str, _) -> chemMadeFromOre str formulas) l
 
 sortListOfRawChems :: [(String,Int)] -> [(String,Int)]
 sortListOfRawChems l =
@@ -102,18 +142,20 @@ testFormulaListString_OneLevel =
   ++ "\n2 ORE => 4 D"
   ++ "\n3 A, 7 B, 11 C, 15 D => 1 FUEL"
 
-test__oneLevelFormula_OneLevel :: IO ()
-test__oneLevelFormula_OneLevel =
+test__1 :: IO ()
+test__1 = do
+  putStrLn "\ntestFormulaListString_OneLevel\n"
   let
     formulas = map parseFormula $ lines testFormulaListString_OneLevel
     list = getListOfRawChemAmountsToMakeChemAmount (getFormulaFor "FUEL" formulas) 1 formulas
 
     contains1 = elem ("A", 3) list
     contains2 = elem ("B", 7) list
-  in do
-    putStrLn $ if contains1 then "PASS" else "FAIL"
-    putStrLn $ if contains2 then "PASS" else "FAIL"
-    putStrLn $ show list
+
+  putStrLn $ if contains1 then "PASS" else "FAIL"
+  putStrLn $ if contains2 then "PASS" else "FAIL"
+  putStrLn $ show list
+  putStrLn "\n"
 
 testFormulaListString_TwoLevels =
        "2 ORE => 4 A"
@@ -121,18 +163,20 @@ testFormulaListString_TwoLevels =
   ++ "\n2 A , 2 B => 1 AB"
   ++ "\n3 AB => 1 FUEL"
 
-test__oneLevelFormula_TwoLevels :: IO ()
-test__oneLevelFormula_TwoLevels =
+test__2 :: IO ()
+test__2 = do
+  putStrLn "\ntestFormulaListString_TwoLevels"
   let
     formulas = map parseFormula $ lines testFormulaListString_TwoLevels
     list = getListOfRawChemAmountsToMakeChemAmount (getFormulaFor "FUEL" formulas) 1 formulas
 
     contains1 = elem ("A", 6) list
     contains2 = elem ("B", 6) list
-  in do
-    putStrLn $ if contains1 then "PASS" else "FAIL"
-    putStrLn $ if contains2 then "PASS" else "FAIL"
-    putStrLn $ show list
+
+  putStrLn $ if contains1 then "PASS" else "FAIL"
+  putStrLn $ if contains2 then "PASS" else "FAIL"
+  putStrLn $ show list
+  putStrLn "\n"
 
 testFormulaListString_TwoLevels_FormulaOutputsMoreThan1 =
        "2 ORE => 4 A"
@@ -244,6 +288,30 @@ test__6  = do
   putStrLn $ if contains4 then "PASS" else "FAIL"
   putStrLn $ show actual
 
+testFormulaListString_ExampleFromReddit =
+  "10 ORE => 5 A"
+  ++ "\n2 A => 3 B"
+  ++ "\n7 B => 1 C"
+  ++ "\n7 B, 1 C => 1 FUEL"
+
+test__7 :: IO ()
+test__7  = do
+  putStrLn "\ntestFormulaListString_ExampleFromReddit"
+  let
+    formulas = map parseFormula $ lines testFormulaListString_ExampleFromReddit
+
+  putStrLn $ show formulas
+  let
+    list = getListOfRawChemAmountsToMakeChemAmount (getFormulaFor "FUEL" formulas) 1 formulas
+    consolidated = consolidateListOfRawChems list
+    actual = consolidated
+
+    contains1 = elem ("A", 10)  actual
+
+  putStrLn $ if contains1 then "PASS" else "FAIL"
+  putStrLn $ show actual
+  putStrLn "\n"
+
 
 testA :: IO ()
 testA = do
@@ -258,20 +326,23 @@ runTests :: IO ()
 runTests = do
   testA
 
-  test__oneLevelFormula_OneLevel
-  test__oneLevelFormula_TwoLevels
+  test__1
+  test__2
   test__3
   test__4
   test__5
   test__6
+  test__7
 
 
 main = do
   runTests
   putStrLn "\n\n\n"
 
+  s <- readFile "day14-input.txt"
+
   let
-    formulas = map parseFormula $ lines testFormulaListString4
+    formulas = map parseFormula $ lines s
     fuelFormula = getFormulaFor "FUEL" formulas
     listOfRawChems = getListOfRawChemAmountsToMakeChemAmount fuelFormula 1 formulas
     consolidated = consolidateListOfRawChems listOfRawChems
