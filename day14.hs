@@ -1,6 +1,7 @@
 import Data.List
 import Data.List.Split
 import Data.Char
+import Numeric.Search
 import Debug.Trace
 
 data Formula = Formula { outputChem :: String
@@ -74,7 +75,7 @@ expandAndConsolidateUntilOnlyRawsLeft l formulas =
   let
     onepass = consolidateListOfRawChems $ concat $ map expand l
   in
-    trace ("\n\n ONEPASS: " ++ show onepass) $
+    --trace ("\n\n ONEPASS: " ++ show onepass) $
     if containsOnlyRawChems (filterNonZeroAmounts onepass) formulas
     then onepass
     else expandAndConsolidateUntilOnlyRawsLeft onepass formulas
@@ -93,7 +94,7 @@ expandAndConsolidateUntilOnlyRawsLeft l formulas =
                                  (fromIntegral (outputAmount formula))
 
                   waste = (numReactions * (outputAmount formula)) - numChems
-                  wasteTerm = trace ("\nWASTE IS :: " ++ (show waste)) $
+                  wasteTerm = --trace ("\nWASTE IS :: " ++ (show waste)) $
                               if waste > 0
                               then [(chemStr, (-1)*waste)]
                               else []
@@ -342,7 +343,7 @@ main = do
   s <- readFile "day14-input.txt"
 
   let
-    formulas = map parseFormula $ lines s
+    formulas = map parseFormula $ lines testFormulaListString3
     fuelFormula = getFormulaFor "FUEL" formulas
     listOfRawChems = getListOfRawChemAmountsToMakeChemAmount fuelFormula 1 formulas
     consolidated = consolidateListOfRawChems listOfRawChems
@@ -362,8 +363,34 @@ main = do
   putStrLn $ show oresPerChem
   putStrLn "totalOres:"
   putStrLn $ show totalOres
-  putStrLn "hello"
 
+  putStrLn "\n\nPART 2"
+
+  let
+    formulas = map parseFormula $ lines s
+    totalOres = totalOreToMakeNFuel 1 fuelFormula formulas
+    answer = largest True $ search (fromTo 0 1000000000000) divForever (\n -> 1000000000000 > totalOreToMakeNFuel n fuelFormula formulas)
+
+  putStrLn "max fuel:"
+  putStrLn $ show answer
+
+
+  
+  putStrLn "Done"
+
+-------------------------------------------------
+---- PART 2
+
+totalOreToMakeNFuel :: Int -> Formula -> [Formula] -> Int
+totalOreToMakeNFuel n fuelFormula formulas =
+  let
+    listOfRawChems = getListOfRawChemAmountsToMakeChemAmount fuelFormula n formulas
+    consolidated = consolidateListOfRawChems listOfRawChems
+
+    oresPerChem = map (\(chemStr,i) -> (chemStr, numOresToMakeNumChems (getFormulaFor chemStr formulas) i)) consolidated
+
+    totalOres = sum $ map snd oresPerChem
+  in totalOres
 
 -------------------------------------------------
 ---- VALIDATION
