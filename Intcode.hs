@@ -1,4 +1,5 @@
 module Intcode where
+import Data.List.Split
 import Data.Array
 import Debug.Trace
 
@@ -15,6 +16,8 @@ data ComputerState =
                 , outputBuffer :: [Int]
                 }
 
+parseProgram :: String -> Program
+parseProgram str = listArray (0,4000) $ (map read $ splitOn "," str) ++ (repeat 0)
 
 showComputerState :: ComputerState -> String
 showComputerState cs = "ComputerState: ID : " ++ (computerId cs) ++ " Counter = " ++ (show $ counter cs) ++ " Status = " ++ (show $ status cs) ++ " relativeBase = " ++ (show $ relativeBase cs) ++ " inputbuffer = " ++ (show $ inputBuffer cs) ++ " outputBuffer = " ++ (show $ outputBuffer cs)
