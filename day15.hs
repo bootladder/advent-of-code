@@ -8,7 +8,7 @@ import Control.Concurrent.MVar
 import System.IO
 
 data Direction = DUMMY|North|South|West|East deriving (Enum, Show, Eq)
-data RobotStatus = Clear|Blocked deriving Show
+data RobotStatus = Clear|Blocked|Finished deriving (Show,Eq)
 data InputMode = Automatic|Manual deriving Show
 
 data Maze = Maze { pos :: (Int,Int)
@@ -65,7 +65,7 @@ playMaze cs maze' mvar =
             $ "not blocked: numWalls = "
             ++ (show $ numWalls maze')
 
-     delay 1000000
+     delay 100000
 
      -- Get User Input
      -- go into manual mode if user starts typing
@@ -92,57 +92,60 @@ playMaze cs maze' mvar =
 
 
      let
-       mazeWithNewDirection = maze' {direction = inputDirection}
 
-       csNext =
-         runProgram cs {inputBuffer = [fromEnum $ (direction mazeWithNewDirection)]}
-       result =
-         head $ outputBuffer csNext
+       csNext = runProgram cs {inputBuffer = [fromEnum inputDirection]}
+       result = head $ outputBuffer csNext
 
-       in
-        case result of
-          -- WALL In that Direction
-          0 ->
-            let newMaze =
-                  -- if totally blocked, go backwards by reversing the backDirection
-                  if (numWalls maze') >= 3
-                  then
-                    mazeWithNewDirection
-                    { robotStatus = Clear
-                    , numWalls = (numWalls maze') + 1
-                    , direction = backDirection maze'
-                    , backDirection = directionToTheBack $ backDirection maze'
-                    }
-                  else
-                    mazeWithNewDirection
-                    { robotStatus = Blocked
-                    , numWalls = (numWalls maze') + 1
-                    }
+       newMaze = updateMaze
+                 maze' {direction = inputDirection}
+                 result
 
-            in
-              playMaze
-              csNext {inputBuffer = [], outputBuffer = []}
-              newMaze
-              mvar
+     if (robotStatus newMaze) == Finished
+       then
+         do
+           putStrLn "\n\n\n I FOUND THE END \n\n\n"
+           pure (csNext,newMaze)
+       else
+         playMaze
+         csNext {inputBuffer = [], outputBuffer = []}
+         newMaze
+         mvar
 
-          -- EMPTY SPACE In that Direction:  Move Forward
-          1 ->
-            let newMaze =
-                  moveForward mazeWithNewDirection
-                  { robotStatus = Clear
-                  , backDirection = directionToTheBack (direction mazeWithNewDirection)
-                  , numWalls = 0
-                  }
-            in playMaze
-               csNext {inputBuffer = [], outputBuffer = []}
-               newMaze
-               mvar
 
-          -- FOUND THE END
-          2 ->
-            do
-              putStrLn "\n\n\n I FOUND THE END \n\n\n"
-              pure (csNext,mazeWithNewDirection)
+updateMaze :: Maze -> Int -> Maze
+updateMaze maze' result =
+  case result of
+    -- WALL In that Direction
+    0 ->
+      let newMaze =
+            -- if totally blocked, go backwards by reversing the backDirection
+            if (numWalls maze') >= 3
+            then
+              maze'
+              { robotStatus = Clear
+              , numWalls = (numWalls maze') + 1
+              , direction = backDirection maze'
+              , backDirection = directionToTheBack $ backDirection maze'
+              }
+            else
+              maze'
+              { robotStatus = Blocked
+              , numWalls = (numWalls maze') + 1
+              }
+
+      in
+        newMaze
+
+    -- EMPTY SPACE In that Direction:  Move Forward
+    1 -> moveForward maze'
+         { robotStatus = Clear
+         , backDirection = directionToTheBack (direction maze')
+         , numWalls = 0
+         }
+
+    -- FOUND THE END
+    2 -> maze' { robotStatus = Finished}
+
 
 
 parseDirection :: Char -> Direction
