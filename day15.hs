@@ -71,24 +71,22 @@ playMaze cs maze' mvar =
      -- go into manual mode if user starts typing
      userInput <-
        case (inputMode maze') of
-         Automatic -> tryTakeMVar mvar
-         Manual -> fmap Just $ takeMVar mvar
+         Automatic -> fmap (\mc ->  case mc of
+                                      Nothing -> '0'
+                                      Just c -> c
+                           )
+                      $ tryTakeMVar mvar
+         Manual -> takeMVar mvar
 
-     inputDirection <-
-        case userInput of
-          Just inputChar ->
+     let modeCheck =
+           case userInput of
+             '0'   -> Automatic
+             _ -> Manual
 
-            case (inputMode maze') of
-
-              Automatic -> pure North -- go into manual mode
-                --playMaze cs maze'{inputMode=Manual} mvar
-
-              Manual -> takeMVar mvar >>= pure . parseDirection
-
-          Nothing ->
-            case (inputMode maze') of
-              Automatic -> pure $ getAutomaticDirection maze'
-              Manual -> takeMVar mvar >>= pure . parseDirection
+     let inputDirection =
+           case (inputMode maze') of
+             Manual -> parseDirection userInput
+             Automatic -> getAutomaticDirection maze'
 
 
      let
@@ -97,7 +95,9 @@ playMaze cs maze' mvar =
        result = head $ outputBuffer csNext
 
        newMaze = updateMaze
-                 maze' {direction = inputDirection}
+                 maze' { direction = inputDirection
+                       , inputMode = modeCheck
+                       }
                  result
 
      if (robotStatus newMaze) == Finished
