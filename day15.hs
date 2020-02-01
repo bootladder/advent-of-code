@@ -22,7 +22,7 @@ data Maze = Maze { pos :: (Int,Int)
 
 showMaze ::Maze -> String
 showMaze m =
-  let maze' = maze m // [(pos m, 1)]
+  let maze' = maze m // [(pos m, 1)] -- add the robot
       showRow row =
         "\n" ++
         map
@@ -36,7 +36,7 @@ showMaze m =
 
       mazeStats = (show $ pos m) ++ (show $ direction m)
   in
-    (concat $ map showRow [-mazeInitialSize .. mazeInitialSize])
+    (concat $ map showRow $ reverse [-mazeInitialSize .. mazeInitialSize])
     ++ "\n" ++
     (mazeStats)
 
@@ -65,7 +65,11 @@ playMaze cs maze' mvar =
             $ "not blocked: numWalls = "
             ++ (show $ numWalls maze')
 
-     delay 100000
+     let availableDirections = getAvailableDirections cs
+     putStrLn $ ("AvailableDirections = " ++ show availableDirections)
+     putStrLn $ ("BackDirection = " ++ (show $ backDirection maze'))
+
+     delay $ 10000 * 2
 
      -- Get User Input
      -- go into manual mode if user starts typing
@@ -80,17 +84,16 @@ playMaze cs maze' mvar =
 
      let modeCheck =
            case userInput of
-             '0'   -> Automatic
-             _ -> Manual
+             '0'  -> Automatic
+             _    -> Manual
 
      let inputDirection =
            case (inputMode maze') of
-             Manual -> parseDirection userInput
-             Automatic -> getAutomaticDirection maze'
+             Manual    -> parseDirection userInput
+             Automatic -> getAutomaticDirection maze' availableDirections
 
 
      let
-
        csNext = runProgram cs {inputBuffer = [fromEnum inputDirection]}
        result = head $ outputBuffer csNext
 
@@ -111,6 +114,18 @@ playMaze cs maze' mvar =
          newMaze
          mvar
 
+getAvailableDirections :: ComputerState -> [Direction]
+getAvailableDirections cs =
+  let
+    clockwiseDirections = [North,East,South,West]
+  in
+    filter (\d -> checkDirectionAvailable cs d) clockwiseDirections
+
+checkDirectionAvailable :: ComputerState -> Direction -> Bool
+checkDirectionAvailable cs dir =
+  let newCs = runProgram cs {inputBuffer = [fromEnum dir]}
+  in
+    if outputBuffer newCs == [0] then False else True
 
 updateMaze :: Maze -> Int -> Maze
 updateMaze maze' result =
@@ -136,7 +151,7 @@ updateMaze maze' result =
       in
         newMaze
 
-    -- EMPTY SPACE In that Direction:  Move Forward
+    -- EMPTY SPACE In that Direction:  Move Forward and update the backDirection
     1 -> moveForward maze'
          { robotStatus = Clear
          , backDirection = directionToTheBack (direction maze')
@@ -193,11 +208,36 @@ moveForward maze' =
            , maze = (maze maze') // [(pos maze', 7)]
           }
 
+getAutomaticDirection :: Maze -> [Direction] -> Direction
+getAutomaticDirection maze' dirs =
+  
+  
+  let myDirection = directionToTheBack $ backDirection maze'
+      oneRight = directionToTheRight myDirection
+      twoRight = directionToTheRight $ directionToTheRight  myDirection
+      threeRight = directionToTheRight $ directionToTheRight $ directionToTheRight myDirection
+  in
+    case length dirs of
+      --if there is only one direction, go there
+      1 -> head dirs
+      -- if there are 2 directions, go forward
+      2 -> head $ filter (\dir -> dir /= (backDirection maze')) dirs
+      _ ->
+        -- if right is possible, go right.  Else go straihght
+        if elem oneRight dirs
+        then oneRight
+        else if elem myDirection dirs
+        then myDirection
+        else threeRight
 
-getAutomaticDirection :: Maze -> Direction
-getAutomaticDirection maze' =
+__getAutomaticDirection :: Maze -> Direction
+__getAutomaticDirection maze' =
   case (robotStatus maze') of
-    Clear -> (direction maze')
+    -- clear and looking straight, try going right.
+    Clear -> if (direction maze') == (directionToTheBack $ direction maze')
+             then directionToTheRight (direction maze')
+             else directionToTheBack (backDirection maze')
+    -- clear and right blocked, go straight
     Blocked ->
       if (backDirection maze') == directionToTheRight (direction maze')
       then directionToTheRight . directionToTheRight $ (direction maze')
