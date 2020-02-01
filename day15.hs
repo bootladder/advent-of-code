@@ -13,6 +13,7 @@ data Maze = Maze { pos :: (Int,Int)
                  , maze :: Array (Int,Int) Int
                  , inputMode :: InputMode
                  , moveList :: [(Int,Int)]
+                 , maxMoves :: Int
                  } deriving Show
 
 showMaze ::Maze -> String
@@ -44,7 +45,8 @@ mazeInitial = Maze { pos = (0,0)
                    , direction = North
                    , backDirection = South
                    , inputMode = Automatic
-                   , moveList = []
+                   , moveList = [(0,0),(0,0)]
+                   , maxMoves = 0
                    , maze = listArray (((-mazeInitialSize),(-mazeInitialSize)),(mazeInitialSize,mazeInitialSize)) $ repeat 0
                    }
 
@@ -57,6 +59,8 @@ playMaze cs maze' mvar =
      let availableDirections = getAvailableDirections cs
      putStrLn $ ("AvailableDirections = " ++ show availableDirections)
      putStrLn $ ("BackDirection = " ++ (show $ backDirection maze'))
+     putStrLn $ ("Length of MoveList = " ++ (show $ length $ moveList maze'))
+     putStrLn $ ("Max Moves = " ++ (show $ maxMoves maze'))
 
      delay $ 10000 * 2
 
@@ -86,7 +90,7 @@ playMaze cs maze' mvar =
        csNext = runProgram cs {inputBuffer = [fromEnum inputDirection]}
        result = head $ outputBuffer csNext
 
-       newMaze = moveForward $
+       newMaze = updateMaxMoves $ updateMoveList $ moveForward $
                  maze' { direction = inputDirection
                        , backDirection = directionToTheBack inputDirection
                        , inputMode = modeCheck
@@ -94,9 +98,15 @@ playMaze cs maze' mvar =
 
      if (result == 2)
        then
-         do
-           putStrLn "\n\n\n I FOUND THE END \n\n\n"
-           pure (csNext,newMaze)
+       do
+         putStrLn "FOUND THE OXYGEN:  RESETTING MOVELIST"
+         delay 1000000
+           --pure (csNext,newMaze)
+         playMaze
+           csNext {inputBuffer = [], outputBuffer = []}
+           newMaze {moveList = [(0,0),(0,0)], maxMoves = 0}
+           --{inputMode = Manual}
+           mvar
        else
          playMaze
          csNext {inputBuffer = [], outputBuffer = []}
@@ -145,6 +155,24 @@ directionToTheBack d =
     West -> East
     DUMMY -> DUMMY
 
+updateMaxMoves :: Maze -> Maze
+updateMaxMoves maze' =
+  let newLength = (length $ moveList maze')
+  in
+    if newLength > maxMoves maze'
+    then maze' {maxMoves = newLength}
+    else maze'
+
+updateMoveList :: Maze -> Maze
+updateMoveList maze' =
+  let newPos = pos maze'
+      newMoveList =
+        -- second to last element
+        if (last $ init $ moveList maze') == newPos
+        then (init $ moveList maze')
+        else (moveList maze') ++ [newPos]
+  in
+    maze' {moveList = newMoveList}
 
 moveForward :: Maze -> Maze
 moveForward maze' =
