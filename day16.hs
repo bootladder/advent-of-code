@@ -30,12 +30,14 @@ calculateDigit :: Int -> [Int] -> [Int] -> Int
 calculateDigit digitNum basePattern digits =
   let
     phasePattern = getBasePatternForDigit digitNum basePattern
-    zipped = zip (phasePattern) digits
-    multiplied = map (\(a,b) -> a*b) zipped
-    summed = sum multiplied
+    summed = zipMultiplyAdd phasePattern digits
     onesDigit = mod (abs summed) 10
   in
     onesDigit
+
+zipMultiplyAdd :: [Int] -> [Int] -> Int
+zipMultiplyAdd as bs =
+  sum $ map (\(a,b)->a*b) $ zip as bs
 
 calculatePhase :: [Int] -> [Int] -> [Int]
 calculatePhase digits basePattern =
@@ -49,12 +51,12 @@ main = do
 
   putStrLn ("The Length is " ++ (show $ length s))
 
-  let digits = stringToDigits testInputString1
-  putStrLn $ (show $ calculateDigit 7 theBasePattern digits)
+  let testDigits1 = stringToDigits testInputString1
+  putStrLn $ (show $ calculateDigit 7 theBasePattern testDigits1)
 
   let phaser = (\digits -> calculatePhase digits theBasePattern)
 
-  let phase1 = (phaser . phaser . phaser . phaser) digits
+  let phase1 = (phaser . phaser . phaser . phaser) testDigits1
 
       digitsFromFile = stringToDigits s
       phase100 = foldl (\acc _ -> phaser acc) digitsFromFile [1..100]
@@ -64,10 +66,16 @@ main = do
   putStrLn "PART 2"
 
   let
-      answer :: [Int]
-      answer = foldl (\acc _ -> phaser acc) testInputDigits5 [1..100]
+      offset = getOffset testInputDigits5
+      answerP1 = phaserFromOffset offset testInputDigits5
+      answerP1_fast = phaserFromOffsetUsingFirstPeriod offset (stringToDigits testInputString5)
+      answerP2_fast = phaserFromOffsetUsingFirstPeriod offset answerP1_fast
+      --answerP100 = foldl (\acc _ -> phaserFromOffsetUsingFirstPeriod offset acc) answerP1_fast [1..2]
 
-  putStrLn $ show $ take 8 answer
+  putStrLn ("Length of Input: " ++ (show $ length testInputDigits5))
+  putStrLn ("Length of P1: " ++ (show $ length answerP1))
+  putStrLn ("P1: " ++ (show $ answerP1))
+  putStrLn ("Length of P100 Faster: " ++ (show $ length $ answerP2_fast))
   putStrLn "wtf"
   putStrLn "Hello"
 
@@ -75,4 +83,37 @@ main = do
 testInputString5 :: String
 testInputString5 = "03036732577212944063491565474664"
 
+testInputDigits5 :: [Int]
 testInputDigits5 = concat $ replicate 10000 $ stringToDigits testInputString5
+
+
+showBaseDigit :: Int -> String
+showBaseDigit 0    = "0"
+showBaseDigit (-1) = "-"
+showBaseDigit 1    = "1"
+
+showBasePatternForDigit :: Int -> Int -> String
+showBasePatternForDigit digit length =
+  concat $ map (\i -> (showBaseDigit i) ++ " ") (take length $ getBasePatternForDigit digit theBasePattern)
+
+getOffset :: [Int] -> Int
+getOffset ints =
+  let digits = take 7 ints
+      digitString = map (\i -> head $ show i) digits :: String
+  in
+    read digitString
+
+
+phaserFromOffset :: Int -> [Int] -> [Int]
+phaserFromOffset offset digits = map (\i -> calculateDigit (offset+i) theBasePattern digits) [0..7]
+
+
+phaserFromOffsetUsingFirstPeriod :: Int -> [Int] -> [Int]
+phaserFromOffsetUsingFirstPeriod offset onePeriodOfDigits =
+  let
+    reversedDigits = concat $ replicate 10000 (reverse onePeriodOfDigits)
+    inputLength = 10000 * (length onePeriodOfDigits)
+    distanceOfOffsetFromEnd = inputLength - offset
+    sums = map (\i -> sum $ take (distanceOfOffsetFromEnd - i + 1) reversedDigits) [0..distanceOfOffsetFromEnd]
+  in
+    map (\i -> mod (abs i) 10) sums
