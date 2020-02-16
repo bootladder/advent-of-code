@@ -1,6 +1,7 @@
 import Intcode
 import Data.Char
 import Data.Array
+import Debug.Trace
 
 -- the input string is printed top to bottom
 -- so (0,0) is the top left, (X,Y) is bottom right
@@ -36,7 +37,26 @@ getScaffoldingMapString =
       csNext = runProgram csInitial
       scaffoldingMapString = map chr $ outputBuffer csNext
 
-    return $ dropWhile (== '\n') $ reverse scaffoldingMapString  --remove newlines
+    return $ reverse $ dropWhile (== '\n') $ reverse scaffoldingMapString  --remove newlines
+
+getIntersections :: Array (Int,Int) Char -> [(Int,Int)]
+getIntersections grid =
+  filter (\index -> isIntersection grid index) $ indices grid
+
+isIntersection :: Array (Int,Int) Char -> (Int,Int) -> Bool
+isIntersection grid (x,y) =
+  let (xMax, yMax) = snd $ bounds grid
+  in
+    --trace ("(x,y) = (" ++ (show x) ++ ", " ++ (show y) ++ ")" ++ " = " ++ (show $ grid ! (x,y))) $
+    if x == 0 || y == 0 || x == xMax || y == yMax  || (grid ! (x,y) /= '#')
+    then False
+    else
+      if (grid ! (x+1,y)) == '#' &&
+         (grid ! (x-1,y)) == '#' &&
+         (grid ! (x,y+1)) == '#' &&
+         (grid ! (x,y-1)) == '#'
+      then True
+      else False
 
 main :: IO ()
 main = do
@@ -48,4 +68,13 @@ main = do
   putStrLn $ show scaffoldingMapGrid
   putStrLn $ show $ bounds scaffoldingMapGrid
   putStrLn $ gridToString scaffoldingMapGrid
+
+  let
+    intersections = getIntersections scaffoldingMapGrid
+    alignmentParameters = map (\(x,y) -> x*y) intersections
+    answer = sum $ map (\(x,y) -> x*y) intersections
+
+  putStrLn $ show intersections
+  putStrLn $ show alignmentParameters
+  putStrLn $ show answer
   putStrLn "hello"
