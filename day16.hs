@@ -1,3 +1,7 @@
+{-# LANGUAGE BangPatterns #-}
+import Data.List (foldl')
+
+
 testInputString1 :: String
 testInputString1 = "12345678"
 
@@ -80,31 +84,46 @@ sumNDigits :: Int -> [Int] -> Int
 sumNDigits numDigits digits =
   sum $ take numDigits digits
 
-testInputString5 :: String
 testInputString5 = "03036732577212944063491565474664"
-
-testInputDigits5 :: [Int]
-testInputDigits5 = repeat10000times $ stringToDigits testInputString5
+testInputString6 = "02935109699940807407585447034323"
+testInputString7 = "03081770884921959731165446850517"
 
 onesDigit :: Int -> Int
 onesDigit n = (mod (abs n) 10)
 
 phaseOperation digits length = map (\d ->  onesDigit $ sumNDigits d digits) [1..length]
+phaseOperationFaster !digits = reverse $ foldl' (\acc d -> [onesDigit $ ((head acc) + d)] ++ acc) [0] digits
+--phaseOperationFaster digits = foldl (\acc d -> acc ++ [onesDigit $ ((head acc) + d)] ) [0] digits
 
 main = do
   putStrLn "PART 2"
+  inputFromFile <- (readFile "day16.txt") >>= (\s -> pure $ init s)
   let
-      offset = 4
-      lengthOfInput = 8
-      numDigitsToCalculate = lengthOfInput - offset
-      transformedInput = take numDigitsToCalculate $ reverse $ stringToDigits testInputString1
+    inputDigits = stringToDigits inputFromFile
+    offset = getOffset $ inputDigits
+    lengthOfInput = (10000 * length inputDigits)
+    numDigitsToCalculate = lengthOfInput - offset
 
-      phaseOutputDigits1 = phaseOperation transformedInput numDigitsToCalculate
-      phaseOutputDigits2 = phaseOperation phaseOutputDigits1 numDigitsToCalculate
-      phaseOutputDigits3 = phaseOperation phaseOutputDigits2 numDigitsToCalculate
-      phaseOutputDigits4 = phaseOperation phaseOutputDigits3 numDigitsToCalculate
+    transformedInput = take numDigitsToCalculate $ reverse $ repeat10000times inputDigits
 
-      phase100 = foldl (\acc _ -> phaseOperation acc numDigitsToCalculate) transformedInput [1..4]
+    phase1 = phaseOperationFaster transformedInput
+    phase2 = phaseOperationFaster phase1
+    phase3 = phaseOperationFaster phase2
+    phase4 = phaseOperationFaster phase3
+    phase5 = phaseOperationFaster phase4
+    phase6 = phaseOperationFaster phase5
+    phase7 = phaseOperationFaster phase6
+    phase8 = phaseOperationFaster phase7
+    phase9 = phaseOperationFaster phase8
 
-  putStrLn $ "Phase output 1 " ++ (show phase100)
+    phase100 = foldl' (\acc _ -> phaseOperationFaster acc) transformedInput [1..100]
+
+
+  putStrLn $ "Offset " ++ (show $ offset)
+  putStrLn $ "Length of Input " ++ (show $ lengthOfInput)
+  putStrLn $ "numDigitsToCalculate " ++ (show $ numDigitsToCalculate)
+
+  --putStrLn $ "Phase output 1 " ++ (show $ take 8 $ reverse phase9)
+  putStrLn $ "Phase output 1 " ++ (show $ take 8 $ reverse phase100)
+  --putStrLn $ "Phase output 1 " ++ (show $ take 8 $ reverse phase100)
   putStrLn "Hello"
