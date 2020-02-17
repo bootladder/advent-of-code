@@ -169,6 +169,72 @@ isAtTheEnd grid (x,y) direction =
   in and $ map (\dir -> False == canGoForward grid (x,y) dir) otherDirections
 
 
+cardinalSteps2LeftRightSteps :: [(Char,Int)] -> [(Char,Int)]
+cardinalSteps2LeftRightSteps [] = []
+cardinalSteps2LeftRightSteps (_:[]) = []
+cardinalSteps2LeftRightSteps (cardinalStep1:cardinalStep2:steps) =
+  let leftRightStep = ((leftOrRight (fst cardinalStep1) (fst cardinalStep2)) , (snd cardinalStep2) )
+  in
+    [leftRightStep] ++ cardinalSteps2LeftRightSteps ([cardinalStep2] ++ steps)
+
+leftOrRight :: Char -> Char -> Char
+leftOrRight 'N' 'W' = 'L'
+leftOrRight 'N' 'E' = 'R'
+leftOrRight 'S' 'E' = 'L'
+leftOrRight 'S' 'W' = 'R'
+leftOrRight 'E' 'N' = 'L'
+leftOrRight 'E' 'S' = 'R'
+leftOrRight 'W' 'N' = 'R'
+leftOrRight 'W' 'S' = 'L'
+leftOrRight _ _  = 'Z'
+
+leftRightStepsToASCII :: [(Char,Int)] -> String
+leftRightStepsToASCII steps =
+  init $ concat $ map showStep steps -- remove trailing comma
+  where showStep (direction, distance) =
+          [direction] ++ "," ++ (show distance) ++ ","
+
+
+routines :: [ (Char, [(Char,Int)]) ] --routine name, list of left/right, distance
+routines =
+  [
+    ('A', [('L',10), ('R',8), ('R',8)])
+  , ('B', [('L',10), ('L',12),('R',8),('R',10)])
+  , ('C', [('R',10),('L',12),('R',10)])
+  ]
+
+matchRoutine :: [(Char,Int)] -> [(Char, [(Char,Int)])] -> Maybe Char
+matchRoutine _ [] = Nothing
+matchRoutine steps (routine:routines) =
+  -- match routines with the beginning of the step list
+  let routineLength = length $ snd routine
+  in
+    if (length steps >= routineLength) && (snd routine) == (take routineLength steps)
+    then
+      Just $ fst routine
+    else matchRoutine steps routines
+
+routineLength :: [(Char, [(Char,Int)])] -> Char -> Int
+routineLength routines c =
+  let found = filter (\(char, _) -> char == c) routines
+  in
+    length $ snd $ head found
+
+substituteRoutines :: [(Char,Int)] -> [(Char, [(Char,Int)])] -> [(Char,Int)] -> [(Char,Int)]
+substituteRoutines [] _ acc = acc
+substituteRoutines steps routines acc =
+  --trace ("running substitute :: ACC :: " ++ (show acc)) $
+  --trace ("running substitute :: steps :: " ++ (show steps)) $
+  case matchRoutine steps routines of
+    Nothing -> substituteRoutines (tail steps) routines (acc ++ [head steps])
+    Just routineId ->
+      --trace "MATCH"
+      substituteRoutines (drop (routineLength routines routineId) steps) routines (acc ++ [(routineId, 999)])
+
+routine2ASCII :: (Char, [(Char,Int)]) -> String
+routine2ASCII routine =
+  leftRightStepsToASCII $ snd routine
+
 main :: IO ()
 main = do
   grid <- (getScaffoldingMapString >>= (\s -> return $ stringToGrid s))
@@ -178,8 +244,36 @@ main = do
     robotPosition = getRobotPosition grid
 
     steps = traceScaffolding grid robotPosition [('N', 0)]  --north is decreasing y
+    leftRightSteps = cardinalSteps2LeftRightSteps steps
+    asciiSteps = leftRightStepsToASCII leftRightSteps
+
+    routinesSubstited = substituteRoutines leftRightSteps routines []
+    mainASCIISequenceNoCommas = (map (ord . fst) routinesSubstited)
+    mainASCIISequenceWithCommas = init $ (concat $ map (\i -> [i] ++ [ord ',']) mainASCIISequenceNoCommas) -- remove trailing comma
+    mainASCIISequence = mainASCIISequenceWithCommas ++ [10]  --newline
+
+    routinesASCIISequences = map (\r -> (routine2ASCII r) ++ "\n" ) routines
+    routinesCombined = map ord $ concat routinesASCIISequences
+
+    programInput = mainASCIISequence ++ routinesCombined ++ (map ord "n\n")
+
+    csInitial = defaultComputerState { program = programWithWakeup, inputBuffer = programInput}
+    csNext = runProgram csInitial
+    
 
   putStrLn $ gridToString grid
   putStrLn $ show robotPosition
   putStrLn $ show steps
+  putStrLn "\n"
+  putStrLn $ show leftRightSteps
+  putStrLn $ show $ length leftRightSteps
+  putStrLn $ "asciiSteps : " ++ (show asciiSteps)
+  putStrLn $ "Length : " ++ (show $ length asciiSteps)
+  putStrLn $ "Routines Subsitutude:  " ++ (show routinesSubstited)
+  putStrLn $ "MAIN ROUTNIE ASCII:  " ++ (show mainASCIISequence)
+  putStrLn $ "Routines ASCII:  " ++ (show routinesCombined)
+  putStrLn $ "PROGRAM INPUT :  " ++ (show programInput)
+  putStrLn $ "OUTPUT BUFFER :  " ++ (show $ map chr $ outputBuffer csNext)
+
+  putStrLn $ "RESULT : " ++ (show csNext)
   putStrLn "hello"
