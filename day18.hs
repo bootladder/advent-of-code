@@ -1,5 +1,6 @@
 import Data.Array
 import Data.Char
+import Data.List
 import Debug.Trace
 
 type Grid = Array (Int,Int) Char
@@ -181,9 +182,26 @@ getMatchingDoors :: World -> Char -> [Door]
 getMatchingDoors world name =
     filter (\door -> (doorName door) == toUpper name) (doors world)
 
+getAllPossibleEndWorlds :: World -> [World]
+getAllPossibleEndWorlds world =
+  let
+    keyDistances = getKeyDistances world
+    nextWorlds = map (\(key,distance) -> pickupKey world (key) (distance)) keyDistances
+  in
+    if isWorldEnded world
+    then [world]
+    else
+      concat $ map getAllPossibleEndWorlds nextWorlds
+
+isWorldEnded :: World -> Bool
+isWorldEnded world =
+  if (keys world) == []
+  then True
+  else False
+
 main = do
 
-  grid <- readGridFromFile "day18-input-1.txt"
+  grid <- readGridFromFile "day18-input-4.txt"
   let keys = getKeys grid
   let doors = getDoors grid
 
@@ -215,4 +233,15 @@ main = do
   --done
   --putStrLn $ show $ keyDistances3
 
+  let allPossibleEndWorlds = getAllPossibleEndWorlds initialWorld
+      somePossibleEndWorlds = take 10000 allPossibleEndWorlds
+
+  --putStrLn $ show somePossibleEndWorlds
+
+  let shortestWorld = minimumBy
+                      (\world1 world2 -> compare (cost world1) (cost world2))
+                      somePossibleEndWorlds
+
+  putStrLn $ "The shortest world cost is " ++ show shortestWorld
+  putStrLn $ "The number of worlds is : " ++ (show $ length allPossibleEndWorlds)
   putStrLn "Hello"
