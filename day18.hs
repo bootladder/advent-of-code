@@ -1,11 +1,12 @@
 import Data.Array
 import Data.Char
+import Debug.Trace
 
 type Grid = Array (Int,Int) Char
 
 data Key = Key { keyName :: Char
                , keyPos :: (Int,Int)
-               } deriving Show
+               } deriving (Show, Eq)
 
 data Door = Door { doorName :: Char
                  , doorPos :: (Int,Int)
@@ -14,11 +15,21 @@ data Door = Door { doorName :: Char
 data World = World { grid :: Grid
                    , keyDistances :: [(Key,Int)]
                    , keys :: [Key]
+                   , doors :: [Door]
                    , pos :: (Int,Int)
                    , cost :: Int
                    }
 
-data Direction = Direction | North | South | East | West deriving (Enum, Eq)
+instance Show World where
+  show world =
+    concat [ "WORLD\n"
+           , (gridToString $ grid world)
+           , "Pos: " ++ (show $ pos world) ++ "\n"
+           , "Keys: " ++ (show $ keys world) ++ "\n"
+           , "Cost: " ++ (show $ cost world) ++ "\n"
+           ]
+
+data Direction = Direction | North | South | East | West | Nowhere deriving (Enum, Eq, Show)
 
 -- the input string is printed top to bottom
 -- so (0,0) is the top left, (X,Y) is bottom right
@@ -84,23 +95,91 @@ isDoorLocation grid (x,y) =
       then True
       else False
 
-getKeyDistances :: Grid -> (Int,Int) -> Direction -> Int -> [(Key, Int)]
-getKeyDistances grid pos direction distance =
+getPosition :: Grid -> (Int,Int)
+getPosition grid =
+  head $ filter (\index -> isPositionMarkerLocation grid index) $ indices grid
+  where
+    isPositionMarkerLocation grid index =
+      grid ! index == '@'
+
+getKeyDistances :: World -> [(Key, Int)]
+getKeyDistances world =
   let
-    dirs = filter (/= direction) $ availableDirections grid pos
+    initialDirection = Nowhere
+    initialDistance = 0
+    initialPosition = pos world
   in
-    []
+    getKeyDistances'' (grid world) initialPosition initialDistance initialDirection
+
+getKeyDistances'' :: Grid -> (Int,Int) -> Int -> Direction -> [(Key,Int)]
+getKeyDistances'' grid pos distance direction =
+  let
+    directionsToGo = filter (/= backwards direction) $ availableDirections (grid) (pos)
+  in
+    --trace (("DirsToGo" ++ show directionsToGo) ++ " , pos " ++ (show pos) ++ " , dir " ++ (show direction))$
+    if isKeyLocation grid pos
+    then [(Key {keyPos = pos, keyName = grid ! pos}, distance)]
+    else
+      concat $ map
+      (\dir -> getKeyDistances'' grid (move pos dir) (distance+1) dir)
+      directionsToGo
+
+move :: (Int,Int) -> Direction -> (Int,Int)
+move (x,y) direction =
+  case direction of
+    North -> (x,y-1)
+    South -> (x,y+1)
+    East -> (x+1,y)
+    West -> (x-1,y)
+
+backwards :: Direction -> Direction
+backwards dir = case dir of
+    North -> South
+    South -> North
+    East -> West
+    West -> East
+    Nowhere -> Nowhere
+
 
 availableDirections :: Grid -> (Int,Int) -> [Direction]
 availableDirections grid pos =
   filter (isAvailableDirection grid pos) [North,South,East,West]
 
 isAvailableDirection :: Grid -> (Int,Int) -> Direction -> Bool
-isAvailableDirection grid (x,y) North = grid ! (x,y-1) == '.'
-isAvailableDirection grid (x,y) South = grid ! (x,y+1) == '.'
-isAvailableDirection grid (x,y) East  = grid ! (x+1,y) == '.'
-isAvailableDirection grid (x,y) West  = grid ! (x-1,y) == '.'
+isAvailableDirection grid (x,y) North = grid ! (x,y-1) == '.' || isLower (grid ! (x,y-1))
+isAvailableDirection grid (x,y) South = grid ! (x,y+1) == '.' || isLower (grid ! (x,y+1))
+isAvailableDirection grid (x,y) East  = grid ! (x+1,y) == '.' || isLower (grid ! (x+1,y))
+isAvailableDirection grid (x,y) West  = grid ! (x-1,y) == '.' || isLower (grid ! (x-1,y))
 
+
+pickupKey :: World -> Key -> Int -> World
+pickupKey world key keyCost =
+  let matchingDoor = getMatchingDoors world (keyName key)
+  in
+    case matchingDoor of
+      [] ->
+        world { grid = (grid world) // [ (keyPos key, '@')
+                                       , (pos world, '.')
+                                       ]
+              , keyDistances = []
+              , keys = filter (/= key) (keys world)
+              , pos = keyPos key
+              , cost = (cost world) + keyCost
+              }
+      [door] ->
+        world { grid = (grid world) // [ (keyPos key, '@')
+                                       , (pos world, '.')
+                                       , (doorPos $ door, '.')
+                                       ]
+              , keyDistances = []
+              , keys = filter (/= key) (keys world)
+              , pos = keyPos key
+              , cost = (cost world) + keyCost
+              }
+
+getMatchingDoors :: World -> Char -> [Door]
+getMatchingDoors world name =
+    filter (\door -> (doorName door) == toUpper name) (doors world)
 
 main = do
 
@@ -109,6 +188,31 @@ main = do
   let doors = getDoors grid
 
   putStrLn $ gridToString grid
-  putStrLn $ show keys
-  putStrLn $ show doors
+  --putStrLn $ show keys
+  --putStrLn $ show doors
+
+  let initialWorld = World { grid = grid
+                           , keyDistances = []
+                           , keys = keys
+                           , doors = doors
+                           , pos = getPosition grid
+                           , cost = 0
+                           }
+      keyDistances = getKeyDistances initialWorld
+
+  putStrLn $ show $ keyDistances
+
+  let nextWorld = pickupKey initialWorld (fst $ head keyDistances) (snd $ head keyDistances)
+      nextKeyDistances = getKeyDistances nextWorld
+
+  putStrLn $ show $ nextWorld
+  putStrLn $ show $ nextKeyDistances
+
+  let world3 = pickupKey nextWorld (fst $ head nextKeyDistances) (snd $ head nextKeyDistances)
+      keyDistances3 = getKeyDistances world3
+
+  putStrLn $ show $ world3
+  --done
+  --putStrLn $ show $ keyDistances3
+
   putStrLn "Hello"
