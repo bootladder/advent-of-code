@@ -14,8 +14,8 @@ data Door = Door { doorName :: Char
                  } deriving Show
 
 data World = World { grid :: Grid
-                   , keyDistances :: [(Key,Int)]
                    , keys :: [Key]
+                   , takenKeyNames :: [Char]
                    , doors :: [Door]
                    , pos :: (Int,Int)
                    , cost :: Int
@@ -27,6 +27,7 @@ instance Show World where
            , (gridToString $ grid world)
            , "Pos: " ++ (show $ pos world) ++ "\n"
            , "Keys: " ++ (show $ keys world) ++ "\n"
+           , "KeysTaken: " ++ (show $ takenKeyNames world) ++ "\n"
            , "Cost: " ++ (show $ cost world) ++ "\n"
            ]
 
@@ -105,6 +106,7 @@ getPosition grid =
 
 getKeyDistances :: World -> [(Key, Int)]
 getKeyDistances world =
+  --trace "\nSTARTING getKeyDistances\n" $
   let
     initialDirection = Nowhere
     initialDistance = 0
@@ -119,7 +121,11 @@ getKeyDistances'' grid pos distance direction =
   in
     --trace (("DirsToGo" ++ show directionsToGo) ++ " , pos " ++ (show pos) ++ " , dir " ++ (show direction))$
     if isKeyLocation grid pos
-    then [(Key {keyPos = pos, keyName = grid ! pos}, distance)]
+    then
+      let key = Key {keyPos = pos, keyName = grid ! pos}
+      in
+        --trace ("Found Key : " ++ (show key)) $
+        [(key, distance)]
     else
       concat $ map
       (\dir -> getKeyDistances'' grid (move pos dir) (distance+1) dir)
@@ -162,20 +168,20 @@ pickupKey world key keyCost =
         world { grid = (grid world) // [ (keyPos key, '@')
                                        , (pos world, '.')
                                        ]
-              , keyDistances = []
               , keys = filter (/= key) (keys world)
               , pos = keyPos key
               , cost = (cost world) + keyCost
+              , takenKeyNames = (takenKeyNames world) ++ [keyName key]
               }
       [door] ->
         world { grid = (grid world) // [ (keyPos key, '@')
                                        , (pos world, '.')
                                        , (doorPos $ door, '.')
                                        ]
-              , keyDistances = []
               , keys = filter (/= key) (keys world)
               , pos = keyPos key
               , cost = (cost world) + keyCost
+              , takenKeyNames = (takenKeyNames world) ++ [keyName key]
               }
 
 getMatchingDoors :: World -> Char -> [Door]
@@ -188,10 +194,14 @@ getAllPossibleEndWorlds world =
     keyDistances = getKeyDistances world
     nextWorlds = map (\(key,distance) -> pickupKey world (key) (distance)) keyDistances
   in
-    if isWorldEnded world
-    then [world]
-    else
-      concat $ map getAllPossibleEndWorlds nextWorlds
+    if (cost world) > 150
+    then []
+    else if isWorldEnded world
+         then
+           trace ("END OF WORLD : " ++ (show world))
+           [world]
+         else
+           concat $ map getAllPossibleEndWorlds nextWorlds
 
 isWorldEnded :: World -> Bool
 isWorldEnded world =
@@ -201,47 +211,29 @@ isWorldEnded world =
 
 main = do
 
-  grid <- readGridFromFile "day18-input-4.txt"
+  grid <- readGridFromFile "day18-input-4-short.txt"
   let keys = getKeys grid
   let doors = getDoors grid
 
   putStrLn $ gridToString grid
-  --putStrLn $ show keys
-  --putStrLn $ show doors
+  putStrLn $ show keys
+  putStrLn $ show doors
 
   let initialWorld = World { grid = grid
-                           , keyDistances = []
                            , keys = keys
                            , doors = doors
                            , pos = getPosition grid
                            , cost = 0
+                           , takenKeyNames = []
                            }
-      keyDistances = getKeyDistances initialWorld
-
-  putStrLn $ show $ keyDistances
-
-  let nextWorld = pickupKey initialWorld (fst $ head keyDistances) (snd $ head keyDistances)
-      nextKeyDistances = getKeyDistances nextWorld
-
-  putStrLn $ show $ nextWorld
-  putStrLn $ show $ nextKeyDistances
-
-  let world3 = pickupKey nextWorld (fst $ head nextKeyDistances) (snd $ head nextKeyDistances)
-      keyDistances3 = getKeyDistances world3
-
-  putStrLn $ show $ world3
-  --done
-  --putStrLn $ show $ keyDistances3
 
   let allPossibleEndWorlds = getAllPossibleEndWorlds initialWorld
-      somePossibleEndWorlds = take 10000 allPossibleEndWorlds
-
-  --putStrLn $ show somePossibleEndWorlds
 
   let shortestWorld = minimumBy
                       (\world1 world2 -> compare (cost world1) (cost world2))
-                      somePossibleEndWorlds
+                      allPossibleEndWorlds
 
+  putStrLn $ "The first world finished cost is " ++ (show $ head allPossibleEndWorlds)
   putStrLn $ "The shortest world cost is " ++ show shortestWorld
   putStrLn $ "The number of worlds is : " ++ (show $ length allPossibleEndWorlds)
   putStrLn "Hello"
