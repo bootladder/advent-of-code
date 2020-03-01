@@ -1,8 +1,8 @@
-module PracticeSpec where
+module FindKeyDistancesTest where
 
 import Test.Hspec
 import Grid
-import KeyDoorMazeWorld
+import FindKeyDistances
 
 main :: IO()
 main =
@@ -89,5 +89,12 @@ spec2 =
                                     findKeyDistancesAndDoorsFromPosition grid pos})
                keyNamesAndPositions
 
+      let matches = filter (\key -> keyName key == '@') keys
+      length matches `shouldBe` 1
+
+  describe "One Liner Creates Keys from Input 2" $ do
+    it "" $ \(grid) -> do
+
+      let keys = getAllKeysDistancesAndDoors grid
       let matches = filter (\key -> keyName key == '@') keys
       length matches `shouldBe` 1

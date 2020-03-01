@@ -1,4 +1,4 @@
-module KeyDoorMazeWorld where
+module FindKeyDistances where
 
 import Grid
 import Data.Char
@@ -10,6 +10,25 @@ data Key = Key { keyName :: Char
                } deriving (Show, Eq)
 
 data Direction = Direction | North | South | East | West | Nowhere deriving (Enum, Eq, Show)
+
+getAllKeysDistancesAndDoors :: Grid -> [Key]
+getAllKeysDistancesAndDoors grid =
+  let
+    keyNamesAndPositions = findKeyNamesAndPositions grid
+    keyPositions = map snd keyNamesAndPositions
+    allOfTheKeyDistancesAndDoors =
+      map
+      (findKeyDistancesAndDoorsFromPosition grid)
+      keyPositions
+
+    keys = map
+           (\(name,pos) -> Key { keyPos = pos
+                               , keyName = name
+                               , otherKeyDistancesAndDoors =
+                                   findKeyDistancesAndDoorsFromPosition grid pos})
+           keyNamesAndPositions
+    in keys
+
 
 findKeyNamesAndPositions :: Grid -> [(Char, Position)]
 findKeyNamesAndPositions grid =
