@@ -5,7 +5,13 @@ import Grid
 import KeyDoorMazeWorld
 
 main :: IO()
-main = hspec $
+main =
+  do
+    spec1
+    spec2
+
+spec1 =
+  hspec $
   before
   (do
       x <- readFile "day18-input-1.txt"
@@ -47,13 +53,41 @@ main = hspec $
     it "e to f is 6 with doors [E,D] and e to c is 14 with doors [C,A,B]" $ \(s1,s2) -> do
       grid <- readGridFromFile "day18-input-2.txt"
 
-      putStrLn $ gridToString grid
-
       let keyDistancesAndDoors =
             findKeyDistancesAndDoorsFromPosition grid (7,1)
-
-      putStrLn $ show keyDistancesAndDoors
 
       (('f',6,['E','D']) `elem` keyDistancesAndDoors) `shouldBe` True
       (('c',14,['C','A','B']) `elem` keyDistancesAndDoors) `shouldBe` True
 
+
+
+spec2 =
+  hspec $
+  before
+  (do
+      grid <- readGridFromFile "day18-input-2.txt"
+      putStrLn $ gridToString grid
+      return grid
+  ) $ do
+
+
+  describe "Creates Keys from Input 2" $ do
+    it "" $ \(grid) -> do
+
+      let
+        keyNamesAndPositions = findKeyNamesAndPositions grid
+        keyPositions = map snd keyNamesAndPositions
+        allOfTheKeyDistancesAndDoors =
+          map
+          (findKeyDistancesAndDoorsFromPosition grid)
+          keyPositions
+
+        keys = map
+               (\(name,pos) -> Key { keyPos = pos
+                                  , keyName = name
+                                  , otherKeyDistancesAndDoors =
+                                    findKeyDistancesAndDoorsFromPosition grid pos})
+               keyNamesAndPositions
+
+      let matches = filter (\key -> keyName key == '@') keys
+      length matches `shouldBe` 1

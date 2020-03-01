@@ -6,13 +6,15 @@ import Data.Char
 
 data Key = Key { keyName :: Char
                , keyPos :: (Int,Int)
+               , otherKeyDistancesAndDoors ::[ (Char, Int, [Char])]
                } deriving (Show, Eq)
 
 data Direction = Direction | North | South | East | West | Nowhere deriving (Enum, Eq, Show)
 
 findKeyNamesAndPositions :: Grid -> [(Char, Position)]
 findKeyNamesAndPositions grid =
-  let positionsAndNames = gridFilter grid (\_ val -> isLower val)
+  let positionsAndNames = gridFilter grid
+                          (\_ val -> isLower val || val == '@')
   in
     map (\(pos,name) -> (name,pos)) positionsAndNames
 
@@ -20,7 +22,9 @@ findKeyDistancesAndDoorsFromPosition :: Grid ->
                                         (Int,Int) ->
                                         [(Char, Int, [Char])]
 findKeyDistancesAndDoorsFromPosition grid pos =
-  recurse'' grid pos 0 [] Nowhere
+  let gridWithPositionRemoved = gridInsertValue grid pos '.'
+  in
+    recurse'' gridWithPositionRemoved pos 0 [] Nowhere
 
 
 recurse'' :: Grid ->
