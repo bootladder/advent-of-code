@@ -1,3 +1,5 @@
+module KeyDoorMazeWorld where
+
 import Data.Array
 import Data.Char
 import Data.List
@@ -33,35 +35,6 @@ instance Show World where
 
 data Direction = Direction | North | South | East | West | Nowhere deriving (Enum, Eq, Show)
 
--- the input string is printed top to bottom
--- so (0,0) is the top left, (X,Y) is bottom right
-stringToGrid :: String -> Grid
-stringToGrid str =
-  let
-    ySize = length $ lines str
-    xSize = length $ head $ lines str
-
-    getRowIndices y =
-      let rowValues = (lines str) !! y
-      in map (\x -> ((x,y), rowValues !! x) ) [0..xSize - 1]
-
-    indices = concat $ map getRowIndices [0..ySize - 1]
-  in
-    array (((0),(0)),(xSize-1,ySize-1)) $ indices
-
-gridToString :: Grid -> String
-gridToString grid =
-  let (xSize,ySize) = snd $ bounds grid
-      showRow y = map (\x -> grid ! (x,y) ) [0..xSize]
-  in
-    concat $ map (\y -> (++) (showRow y) "\n") [0..ySize]
-
-
-readGridFromFile :: String -> IO (Grid)
-readGridFromFile filename =
-  do
-    inputString <- readFile filename >>= (pure . init)
-    return $ stringToGrid inputString
 
 getKeys :: Grid -> [Key]
 getKeys grid =
@@ -209,31 +182,3 @@ isWorldEnded world =
   then True
   else False
 
-main = do
-
-  grid <- readGridFromFile "day18-input-4-short.txt"
-  let keys = getKeys grid
-  let doors = getDoors grid
-
-  putStrLn $ gridToString grid
-  putStrLn $ show keys
-  putStrLn $ show doors
-
-  let initialWorld = World { grid = grid
-                           , keys = keys
-                           , doors = doors
-                           , pos = getPosition grid
-                           , cost = 0
-                           , takenKeyNames = []
-                           }
-
-  let allPossibleEndWorlds = getAllPossibleEndWorlds initialWorld
-
-  let shortestWorld = minimumBy
-                      (\world1 world2 -> compare (cost world1) (cost world2))
-                      allPossibleEndWorlds
-
-  putStrLn $ "The first world finished cost is " ++ (show $ head allPossibleEndWorlds)
-  putStrLn $ "The shortest world cost is " ++ show shortestWorld
-  putStrLn $ "The number of worlds is : " ++ (show $ length allPossibleEndWorlds)
-  putStrLn "Hello"
