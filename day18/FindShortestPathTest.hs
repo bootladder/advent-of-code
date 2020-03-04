@@ -67,7 +67,7 @@ spec2 =
   hspec $
   before
   (do
-      grid <- readGridFromFile "day18-input-1.txt"
+      grid <- readGridFromFile "day18-input-2.txt"
       putStrLn $ gridToString grid
       return grid
   ) $ do
@@ -79,4 +79,4 @@ spec2 =
       let allPossiblePaths = findAllPossiblePaths keys
 
       --putStrLn $ show keys
-      putStrLn $ show allPossiblePaths
+      putStrLn $ "All possible Paths: " ++ show allPossiblePaths

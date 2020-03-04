@@ -42,43 +42,45 @@ removeDoorNameFromKeys name keys =
 
 findAllPossiblePaths :: [Key] -> [Char]
 findAllPossiblePaths keys =
-  let firstKey = head $ filter (\k -> keyName k == '@') keys
-  in
-    findAllPossiblePathsStartingAt keys firstKey [] [] 0
+    findAllPossiblePathsStartingAt keys '@' [] [] 0
 
 findAllPossiblePathsStartingAt :: [Key] ->
-                                  Key ->
+                                  Char ->
                                   [Char] ->
                                   [Char] ->
                                   Int ->
                                   [Char]
-findAllPossiblePathsStartingAt keys startingKey doorsNamesOpened keyNamesFound distance =
+findAllPossiblePathsStartingAt keys startingKeyName doorsNamesOpened keyNamesFound distance =
   let
-    keysWithStartingKeyRemoved =
-      removeKeyByName (keyName startingKey) keys
-
     keysWithDoorRemoved =
-      removeDoorNameFromKeys (toUpper $ keyName startingKey) keysWithStartingKeyRemoved
+      removeDoorNameFromKeys (toUpper startingKeyName) keys
+
+    keysWithStartingKeyRemoved =
+      removeKeyByName startingKeyName keysWithDoorRemoved
+
+    startingKeyWithDoorRemoved = getKeyByName startingKeyName keysWithDoorRemoved
+
 
     possibleNextChoices = filter
                           (\(name, _, doors) ->
                              (doors == []))
                           $
-                          otherKeyDistancesAndDoors startingKey
+                          otherKeyDistancesAndDoors startingKeyWithDoorRemoved
 
   in
-    trace ("\nCURRENT DISTANCE : " ++ show distance) $
-    trace ("\nSTARTING KEY : " ++ show startingKey) $
-    trace ("\nNUM CHOICES : " ++ show possibleNextChoices) $
+    --trace ("\nCURRENT DISTANCE : " ++ show distance) $
+    --trace ("\nSTARTING KEY WITH DOOR REMOVED : " ++ show startingKeyWithDoorRemoved) $
+    --trace ("\nKEYS WITH DOOR REMOVED AND STARTING KEY REMOVED: " ++ show keysWithStartingKeyRemoved) $
+    --trace ("\nNUM CHOICES : " ++ show possibleNextChoices) $
     if length possibleNextChoices == 0
     then
-      [keyName startingKey]
+      keyNamesFound
     else
       concat $
       map (\(name,d,doors) ->
               findAllPossiblePathsStartingAt
-              keysWithDoorRemoved
-              (getKeyByName name keysWithStartingKeyRemoved)
+              keysWithStartingKeyRemoved
+              name
               (doorsNamesOpened ++ [toUpper name])
               (keyNamesFound ++ [name])
               (distance + d)
