@@ -40,17 +40,16 @@ removeDoorNameFromKeys name keys =
   in
     map removeDoorNameFromKey keys
 
-findAllPossiblePaths :: [Key] -> [Char]
+findAllPossiblePaths :: [Key] -> [([Char], Int)]
 findAllPossiblePaths keys =
-    findAllPossiblePathsStartingAt keys '@' [] [] 0
+    findAllPossiblePathsStartingAt keys '@' [] 0
 
 findAllPossiblePathsStartingAt :: [Key] ->
                                   Char ->
                                   [Char] ->
-                                  [Char] ->
                                   Int ->
-                                  [Char]
-findAllPossiblePathsStartingAt keys startingKeyName doorsNamesOpened keyNamesFound distance =
+                                  [([Char], Int)]
+findAllPossiblePathsStartingAt keys startingKeyName keyNamesFound  distance =
   let
     keysWithDoorRemoved =
       removeDoorNameFromKeys (toUpper startingKeyName) keys
@@ -74,14 +73,13 @@ findAllPossiblePathsStartingAt keys startingKeyName doorsNamesOpened keyNamesFou
     --trace ("\nNUM CHOICES : " ++ show possibleNextChoices) $
     if length possibleNextChoices == 0
     then
-      keyNamesFound
+      [(keyNamesFound, distance)]
     else
       concat $
       map (\(name,d,doors) ->
               findAllPossiblePathsStartingAt
               keysWithStartingKeyRemoved
               name
-              (doorsNamesOpened ++ [toUpper name])
               (keyNamesFound ++ [name])
               (distance + d)
           )

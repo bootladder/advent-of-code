@@ -4,6 +4,7 @@ import Test.Hspec
 import FindShortestPath
 import Grid
 import FindKeyDistances
+import Data.List
 
 main :: IO()
 main =
@@ -67,7 +68,7 @@ spec2 =
   hspec $
   before
   (do
-      grid <- readGridFromFile "day18-input-2.txt"
+      grid <- readGridFromFile "day18-input-4.txt"
       putStrLn $ gridToString grid
       return grid
   ) $ do
@@ -79,4 +80,10 @@ spec2 =
       let allPossiblePaths = findAllPossiblePaths keys
 
       --putStrLn $ show keys
-      putStrLn $ "All possible Paths: " ++ show allPossiblePaths
+      --putStrLn $ "All possible Paths: " ++ show allPossiblePaths
+
+      let takeSome = take 10000 allPossiblePaths
+
+      let minPath = minimumBy (\(_,d1) (_,d2) -> compare d1 d2 ) takeSome
+
+      putStrLn $ "Min Path : " ++ (show minPath)
