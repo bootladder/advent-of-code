@@ -1,12 +1,11 @@
 /*
  * Find 3 entries that sum to 2020
  * Sort the entries
- * With pointers at beginning and end,
- * if they sum to larger or equal to 2020
- * lower the end.
- * If less, subtract the sum from 2020
+ * With pointer at the end,
+ * subtract the value from 2020
  *    Find 2 entries that sum to the difference using the part1 technique
- * If 2 entries not found, raise the beginning
+ *    if match, done
+ * lower the end
  */
 
 #include <iostream>
@@ -38,38 +37,45 @@ int main(int argc, char ** argv){
 
   sort(entries.begin(),entries.end());
 
-  for(auto v: entries){
-    cout << v << endl;
-  }
+//  for(auto v: entries){
+//    cout << v << endl;
+//  }
+//
   highest_index = entries.size() - 1;
 
   do {
-    lowest_value = entries.at(lowest_index);
+    //lowest_value = entries.at(lowest_index);
     highest_value = entries.at(highest_index);
 
-    int sum = lowest_value + highest_value;
+//    int sum = lowest_value + highest_value;
+//
+//    if(sum >= 2020){
+//      highest_index--;
+//      continue;
+//    }
 
-    if(sum >= 2020){
-      highest_index--;
-      continue;
-    }
+    int difference = 2020 - highest_value;
 
-    int difference = 2020 - sum;
-
-    cout << "Lowest: " << lowest_value << endl;
+//    cout << "Lowest: " << lowest_value << endl;
     cout << "Highest: " << highest_value << endl;
     cout << "Diff: " << difference << endl;
 
-    bool found = binary_search(entries.begin(), entries.end(), difference);
-    if(found){
+    vector<int> subvector(entries.begin(), entries.begin()+highest_index);
+
+    cout << "Searching subvector" << endl;
+    cout << "length of subvector : " << subvector.size();
+    cout << "length of orig : " << entries.size() << endl;
+    vector<int> result = find_two_values_with_sum_in_vector(subvector, difference);
+    if(result.size()){
+      cout << "YAY FOUND" << endl;
+      cout << result.at(0) << endl;
+      cout << result.at(1) << endl;
       break;
     }
 
-    lowest_index++;
-
-
+    highest_index--;
   }
-  while(lowest_index < entries.size()-1);
+  while(highest_index > 0);
 
   cout << "done" << endl;
 }

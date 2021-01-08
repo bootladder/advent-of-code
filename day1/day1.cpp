@@ -14,14 +14,12 @@
 #include <vector>
 #include <algorithm>
 #include "help.h"
+
+
 using namespace std;
 
 int main(int argc, char ** argv){
   vector<int> entries;
-  int lowest_index = 0;
-  int highest_index = 0;
-  int lowest_value = 0;
-  int highest_value = 0;
 
   cout << "Processing input file: " << argv[1] << endl;
   fstream infile(argv[1]);
@@ -38,32 +36,10 @@ int main(int argc, char ** argv){
 //    cout << v << endl;
 //  }
 
-  highest_index = (int)entries.size() - 1;
+  auto twovalues = find_two_values_with_sum_in_vector(entries, 2020);
 
-  do {
-    lowest_value = entries.at(lowest_index);
-    highest_value = entries.at(highest_index);
-//    cout << "lowets L: " << lowest_value << endl;
-//    cout << "hiiest L: " << highest_value << endl;
-
-    if(lowest_value + highest_value == 2020){
-      break;
-    }
-
-    if(lowest_value + highest_value < 2020){
-      lowest_index++;
-      continue;
-    }
-    if(lowest_value + highest_value > 2020){
-      highest_index--;
-      continue;
-    }
-
-  }
-  while(lowest_index < entries.size()-1);
-
-  cout << "lowets L: " << lowest_value << endl;
-  cout << "hiiest L: " << highest_value << endl;
+  cout << twovalues.at(0) << endl;
+  cout << twovalues.at(1) << endl;
 }
 
 
