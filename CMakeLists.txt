@@ -20,3 +20,8 @@ add_executable(advent_of_code_2020_day1_2
 add_executable(day2_1
         day2/day2-1.cpp
         )
+
+
+add_executable(day2_2
+        day2/day2-2.cpp
+        )

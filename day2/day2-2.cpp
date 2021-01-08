@@ -11,7 +11,7 @@ using namespace std;
 
 bool is_valid_password(string line);
 
-void load_max_min(int & max, int & min, basic_string<char> &basicString);
+void load_index1_index2(int & max, int & min, basic_string<char> &basicString);
 
 bool is_valid_password(int i, int i1, char i2, string basicString);
 
@@ -50,38 +50,34 @@ bool is_valid_password(string line) {
   std::vector<std::string> results;
   boost::split(results, line, [](char c){return c == ' ';});
 
-//  cout << "count range : " << results.at(0) << endl;
-  int max, min;
-  load_max_min(max,min,results.at(0));
-  cout << "max is : " << max << endl;
-  cout << "min is : " << min << endl;
-
-//  cout << "letter : " << results.at(1) << endl;
+  int index1, index2;
+  load_index1_index2(index1,index2,results.at(0));
+  cout << "load_index1 is : " << index1 << endl;
+  cout << "load_index1 is : " << index2 << endl;
 
   char c = results.at(1).at(0);
   cout << "letter CHAR is : " << c << endl;
 
   string password = results.at(2);
   cout << "password is : " << password << endl;
-  return is_valid_password(min,max,c,password);
+  return is_valid_password(index1,index2,c,password);
 }
 
-void load_max_min(int & max, int & min, basic_string<char> &rangeStr) {
-  std::vector<std::string> results;
+void load_index1_index2(int & index1, int & index2, basic_string<char> &rangeStr) {
+  vector<string> results;
   boost::split(results, rangeStr, [](char c){return c == '-';});
 
-  min = stoi(results.at(0));
-  max = stoi(results.at(1));
+  index1 = stoi(results.at(0));
+  index2 = stoi(results.at(1));
 }
 
-bool is_valid_password(int min, int max, char c, string password) {
-  // count number of c's in password
+bool is_valid_password(int index1, int index2, char c, string password) {
   int count = 0;
-  for(auto ctrav : password){
-//    cout << ctrav << endl;
-    if(ctrav == c)
-      count++;
+  if(password.at(index1-1) == c){
+    count++;
   }
-  cout << "count is : " << count << endl;
-  return (count >= min && count <= max);
+  if(password.at(index2-1) == c){
+    count++;
+  }
+  return count == 1;
 }
