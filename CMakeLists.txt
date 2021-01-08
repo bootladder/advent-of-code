@@ -8,6 +8,8 @@ find_package(Boost 1.1)
 include_directories(${Boost_INCLUDE_DIRS})
 #endif()
 
+include_directories(help)
+
 add_executable(advent_of_code_2020
         day1/help.cpp
         day1/day1.cpp)
@@ -21,7 +23,11 @@ add_executable(day2_1
         day2/day2-1.cpp
         )
 
-
 add_executable(day2_2
         day2/day2-2.cpp
+        )
+
+add_executable(day3-1
+        day3/day3-1.cpp
+        help/filehelp.cpp
         )
