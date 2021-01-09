@@ -31,3 +31,7 @@ add_executable(day3-1
         day3/day3-1.cpp
         help/filehelp.cpp
         )
+add_executable(day3-2
+        day3/day3-2.cpp
+        help/filehelp.cpp
+        )
